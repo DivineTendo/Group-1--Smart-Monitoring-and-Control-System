@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "author": "tendo divine",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp_master",
+      "top": -96,
+      "left": 52.84,
+      "attrs": {}
+    },
+    { "type": "wokwi-hc-sr04", "id": "sonar_room1", "top": -161.7, "left": -301.7, "attrs": {} },
+    {
+      "type": "wokwi-relay-module",
+      "id": "relay_room1",
+      "top": -57.4,
+      "left": -163.2,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -120.85,
+      "left": -124.8,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_room1",
+      "top": -176.4,
+      "left": -34.2,
+      "attrs": { "color": "white", "label": "ROOM 1 LIGHT", "flip": "1" }
+    },
+    { "type": "wokwi-hc-sr04", "id": "sonar_room2", "top": -209.7, "left": 168.7, "attrs": {} },
+    {
+      "type": "wokwi-relay-module",
+      "id": "relay_room2",
+      "top": -47.8,
+      "left": 211.2,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": -111.25,
+      "left": 326.4,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_room2",
+      "top": -195.6,
+      "left": 378.6,
+      "attrs": { "color": "white", "label": "ROOM 2 LIGHT", "flip": "1" }
+    }
+  ],
+  "connections": [
+    [ "esp_master:GND.1", "sonar_room1:GND", "black", [] ],
+    [ "esp_master:5V", "sonar_room1:VCC", "red", [] ],
+    [ "esp_master:D5", "sonar_room1:TRIG", "purple", [] ],
+    [ "esp_master:D18", "sonar_room1:ECHO", "orange", [] ],
+    [ "esp_master:GND.1", "relay_room1:GND", "black", [] ],
+    [ "esp_master:5V", "relay_room1:VCC", "red", [] ],
+    [ "esp_master:D14", "relay_room1:IN", "blue", [] ],
+    [ "esp_master:5V", "relay_room1:COM", "red", [] ],
+    [ "relay_room1:NO", "r1:1", "green", [] ],
+    [ "r1:2", "led_room1:A", "green", [] ],
+    [ "esp_master:GND.2", "led_room1:C", "black", [] ],
+    [ "esp_master:GND.1", "sonar_room2:GND", "black", [] ],
+    [ "esp_master:5V", "sonar_room2:VCC", "red", [] ],
+    [ "esp_master:D4", "sonar_room2:TRIG", "purple", [] ],
+    [ "esp_master:D19", "sonar_room2:ECHO", "orange", [] ],
+    [ "esp_master:GND.1", "relay_room2:GND", "black", [] ],
+    [ "esp_master:5V", "relay_room2:VCC", "red", [] ],
+    [ "esp_master:D27", "relay_room2:IN", "blue", [] ],
+    [ "esp_master:5V", "relay_room2:COM", "red", [] ],
+    [ "relay_room2:NO", "r2:1", "green", [] ],
+    [ "r2:2", "led_room2:A", "green", [] ],
+    [ "esp_master:GND.2", "led_room2:C", "black", [] ]
+  ],
+  "dependencies": {}
+}
