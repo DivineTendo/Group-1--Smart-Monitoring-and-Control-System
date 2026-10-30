@@ -1,3 +1,7 @@
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_rom_sys.h"
@@ -7,89 +11,120 @@
 
 #define ROOM_SCAN_PERIOD_MS 250
 #define OCCUPIED_DISTANCE_CM 150
-#define SENSOR_TIMEOUT_US 30000
-#define TRIGGER_PULSE_US 10
+#define ECHO_TIMEOUT_US 30000
 
-static const char *TAG = "room_tasks";
+static const char *TAG = "lecture_rooms";
 
 typedef struct {
     const char *name;
     gpio_num_t trigger_pin;
     gpio_num_t echo_pin;
-    gpio_num_t relay_pin;
-} room_config_t;
+    gpio_num_t light_pin;
+} room_t;
 
-static const room_config_t room_configs[] = {
+static const room_t rooms[] = {
     {
         .name = "Lecture Room 1",
         .trigger_pin = GPIO_NUM_5,
         .echo_pin = GPIO_NUM_18,
-        .relay_pin = GPIO_NUM_14,
+        .light_pin = GPIO_NUM_14,
     },
     {
         .name = "Lecture Room 2",
         .trigger_pin = GPIO_NUM_4,
         .echo_pin = GPIO_NUM_19,
-        .relay_pin = GPIO_NUM_27,
+        .light_pin = GPIO_NUM_27,
     },
 };
 
-static bool measure_distance_cm(const room_config_t *room, float *distance_cm)
+static bool configure_room_gpio(const room_t *room)
+{
+    gpio_config_t trigger_config = {
+        .pin_bit_mask = 1ULL << room->trigger_pin,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config_t echo_config = {
+        .pin_bit_mask = 1ULL << room->echo_pin,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    gpio_config_t light_config = {
+        .pin_bit_mask = 1ULL << room->light_pin,
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+
+    if (gpio_config(&trigger_config) != ESP_OK ||
+        gpio_config(&echo_config) != ESP_OK ||
+        gpio_config(&light_config) != ESP_OK) {
+        ESP_LOGE(TAG, "%s GPIO configuration failed", room->name);
+        return false;
+    }
+
+    gpio_set_level(room->trigger_pin, 0);
+    gpio_set_level(room->light_pin, 0);
+    return true;
+}
+
+static bool read_distance_cm(const room_t *room, float *distance_cm)
 {
     gpio_set_level(room->trigger_pin, 0);
     esp_rom_delay_us(2);
     gpio_set_level(room->trigger_pin, 1);
-    esp_rom_delay_us(TRIGGER_PULSE_US);
+    esp_rom_delay_us(10);
     gpio_set_level(room->trigger_pin, 0);
 
-    int64_t wait_started = esp_timer_get_time();
+    int64_t start = esp_timer_get_time();
     while (gpio_get_level(room->echo_pin) == 0) {
-        if (esp_timer_get_time() - wait_started >= SENSOR_TIMEOUT_US) {
+        if (esp_timer_get_time() - start >= ECHO_TIMEOUT_US) {
             return false;
         }
     }
 
-    int64_t echo_started = esp_timer_get_time();
+    int64_t echo_start = esp_timer_get_time();
     while (gpio_get_level(room->echo_pin) == 1) {
-        if (esp_timer_get_time() - echo_started >= SENSOR_TIMEOUT_US) {
+        if (esp_timer_get_time() - echo_start >= ECHO_TIMEOUT_US) {
             return false;
         }
     }
 
-    int64_t pulse_width_us = esp_timer_get_time() - echo_started;
-    *distance_cm = (float)pulse_width_us / 58.0f;
+    *distance_cm = (float)(esp_timer_get_time() - echo_start) / 58.0f;
     return true;
 }
 
-static void room_task(void *arg)
+static void lecture_room_task(void *argument)
 {
-    const room_config_t *room = (const room_config_t *)arg;
+    const room_t *room = argument;
     bool light_on = false;
 
-    gpio_set_direction(room->trigger_pin, GPIO_MODE_OUTPUT);
-    gpio_set_direction(room->echo_pin, GPIO_MODE_INPUT);
-    gpio_set_direction(room->relay_pin, GPIO_MODE_OUTPUT);
-    gpio_set_level(room->trigger_pin, 0);
-    gpio_set_level(room->relay_pin, 0);
+    if (!configure_room_gpio(room)) {
+        vTaskDelete(NULL);
+        return;
+    }
 
-    ESP_LOGI(TAG, "%s task started (trigger=%d, echo=%d, relay=%d)",
-             room->name, room->trigger_pin, room->echo_pin, room->relay_pin);
+    ESP_LOGI(TAG, "%s task started", room->name);
 
-    for (;;) {
-        float distance_cm = 0.0f;
-        bool occupied = false;
+    while (true) {
+        float distance_cm;
 
-        if (measure_distance_cm(room, &distance_cm)) {
-            occupied = distance_cm <= OCCUPIED_DISTANCE_CM;
+        if (read_distance_cm(room, &distance_cm)) {
+            bool occupied = distance_cm <= OCCUPIED_DISTANCE_CM;
+
             if (occupied != light_on) {
                 light_on = occupied;
-                gpio_set_level(room->relay_pin, light_on);
+                gpio_set_level(room->light_pin, light_on ? 1 : 0);
                 ESP_LOGI(TAG, "%s: %.1f cm, light %s",
                          room->name, distance_cm, light_on ? "ON" : "OFF");
             }
         } else {
-            ESP_LOGW(TAG, "%s: ultrasonic sensor timeout; retaining light state",
-                     room->name);
+            ESP_LOGW(TAG, "%s: sensor timeout; light state unchanged", room->name);
         }
 
         vTaskDelay(pdMS_TO_TICKS(ROOM_SCAN_PERIOD_MS));
@@ -98,17 +133,10 @@ static void room_task(void *arg)
 
 void app_main(void)
 {
-    for (size_t index = 0; index < sizeof(room_configs) / sizeof(room_configs[0]); ++index) {
-        BaseType_t result = xTaskCreate(
-            room_task,
-            room_configs[index].name,
-            3072,
-            (void *)&room_configs[index],
-            5,
-            NULL);
-
-        if (result != pdPASS) {
-            ESP_LOGE(TAG, "Failed to create task for %s", room_configs[index].name);
+    for (size_t i = 0; i < sizeof(rooms) / sizeof(rooms[0]); ++i) {
+        if (xTaskCreate(lecture_room_task, rooms[i].name, 3072,
+                        (void *)&rooms[i], 5, NULL) != pdPASS) {
+            ESP_LOGE(TAG, "Could not create task for %s", rooms[i].name);
         }
     }
 }

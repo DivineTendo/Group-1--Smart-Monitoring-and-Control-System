@@ -2,15 +2,17 @@
   "configurations": [
     {
       "name": "ESP-IDF",
-      "compilerPath": "",
-      "compileCommands": "${config:idf.buildPath}/compile_commands.json",
-      "intelliSenseMode": "gcc-x86",
+      "compilerPath": "C:\\Users\\Divine\\.espressif\\tools\\xtensa-esp-elf\\esp-15.2.0_20251204\\xtensa-esp-elf\\bin\\xtensa-esp32-elf-gcc.exe",
+      "compileCommands": "${workspaceFolder}\\build\\compile_commands.json",
+      "intelliSenseMode": "windows-gcc-x64",
       "includePath": [
-        "${workspaceFolder}/**"
+        "${workspaceFolder}\\**",
+        "C:\\Users\\Divine\\esp\\.espressif\\v6.0.2\\esp-idf\\components\\**"
       ],
       "browse": {
         "path": [
-          "${workspaceFolder}"
+          "${workspaceFolder}",
+          "C:\\Users\\Divine\\esp\\.espressif\\v6.0.2\\esp-idf\\components"
         ],
         "limitSymbolsToIncludedHeaders": true
       }
