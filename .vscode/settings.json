@@ -4,5 +4,6 @@
     "--background-index",
     "--query-driver=**",
     "--compile-commands-dir=c:\\Users\\Divine\\Group 1, Smart Monitoring and Control System\\build"
-  ]
+  ],
+  "idf.currentSetup": "C:\\esp\\v6.0.2\\esp-idf"
 }

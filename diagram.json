@@ -1,63 +1,74 @@
 {
   "version": 1,
-  "author": "tendo divine",
+  "author": "group1",
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-devkit-c-v4", "id": "esp_master", "top": -200, "left": 0, "attrs": {} },
+
     { "type": "wokwi-hc-sr04", "id": "sonar_room1", "top": -161.7, "left": -301.7, "attrs": {} },
-    {
-      "type": "wokwi-resistor",
-      "id": "r1",
-      "top": -149.65,
-      "left": -144,
-      "rotate": 270,
-      "attrs": { "value": "220" }
-    },
-    {
-      "type": "wokwi-led",
-      "id": "led_room1",
-      "top": -243.6,
-      "left": -101.4,
-      "attrs": { "color": "white", "label": "ROOM 1 LIGHT", "flip": "1" }
-    },
+    { "type": "wokwi-resistor", "id": "r1", "top": -149.65, "left": -144, "rotate": 270, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led_room1", "top": -243.6, "left": -101.4, "attrs": { "color": "white", "label": "ROOM 1 LIGHT", "flip": "1" } },
+
     { "type": "wokwi-hc-sr04", "id": "sonar_room2", "top": -200.1, "left": 245.5, "attrs": {} },
-    {
-      "type": "wokwi-resistor",
-      "id": "r2",
-      "top": -110.4,
-      "left": 162.65,
-      "rotate": 270,
-      "attrs": { "value": "220" }
-    },
-    {
-      "type": "wokwi-led",
-      "id": "led_room2",
-      "top": -310.8,
-      "left": 167,
-      "attrs": { "color": "white", "label": "ROOM 2 LIGHT" }
-    }
+    { "type": "wokwi-resistor", "id": "r2", "top": -110.4, "left": 162.65, "rotate": 270, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led_room2", "top": -310.8, "left": 167, "attrs": { "color": "white", "label": "ROOM 2 LIGHT" } },
+
+    { "type": "wokwi-servo", "id": "servo_in", "top": -60, "left": 420, "attrs": {} },
+    { "type": "wokwi-servo", "id": "servo_out", "top": 40, "left": 420, "attrs": {} },
+    { "type": "wokwi-buzzer", "id": "bz1", "top": -300, "left": 60, "attrs": { "volume": "0.1" } },
+    { "type": "wokwi-pushbutton", "id": "btn_emerg", "top": -330, "left": -20, "attrs": { "color": "red", "label": "FIRE" } },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": 120, "left": -200, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": 150, "left": 120, "attrs": { "i2cAddress": "0x3c" } },
+    { "type": "wokwi-microsd-card", "id": "sd1", "top": 130, "left": 300, "attrs": {} }
   ],
   "connections": [
-    [ "esp_master:GND.1", "sonar_room1:GND", "black", [] ],
+    [ "esp_master:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp_master:RX", "$serialMonitor:TX", "", [] ],
+
     [ "esp_master:5V", "sonar_room1:VCC", "red", [] ],
-    [ "esp_master:D5", "sonar_room1:TRIG", "purple", [] ],
-    [ "esp_master:D18", "sonar_room1:ECHO", "orange", [] ],
-    [ "esp_master:D14", "r1:1", "blue", [] ],
+    [ "esp_master:GND.1", "sonar_room1:GND", "black", [] ],
+    [ "esp_master:32", "sonar_room1:TRIG", "purple", [] ],
+    [ "esp_master:34", "sonar_room1:ECHO", "orange", [] ],
+    [ "esp_master:14", "r1:1", "blue", [] ],
     [ "r1:2", "led_room1:A", "green", [] ],
-    [ "esp_master:GND.2", "led_room1:C", "black", [] ],
-    [ "esp_master:GND.1", "sonar_room2:GND", "black", [] ],
+    [ "esp_master:GND.1", "led_room1:C", "black", [] ],
+
     [ "esp_master:5V", "sonar_room2:VCC", "red", [] ],
-    [ "esp_master:D4", "sonar_room2:TRIG", "purple", [] ],
-    [ "esp_master:D19", "sonar_room2:ECHO", "orange", [] ],
-    [ "esp_master:D27", "r2:1", "blue", [] ],
+    [ "esp_master:GND.3", "sonar_room2:GND", "black", [] ],
+    [ "esp_master:33", "sonar_room2:TRIG", "purple", [] ],
+    [ "esp_master:35", "sonar_room2:ECHO", "orange", [] ],
+    [ "esp_master:27", "r2:1", "blue", [] ],
     [ "r2:2", "led_room2:A", "green", [] ],
-    [ "esp_master:GND.2", "led_room2:C", "black", [] ],
-    [ "r1:1", "esp_master:14", "green", [ "h-0.85", "v37.85" ] ],
-    [ "r2:1", "esp_master:27", "green", [ "h0" ] ],
-    [ "sonar_room1:ECHO", "esp_master:18", "green", [ "v38.4", "h311.16" ] ],
-    [ "sonar_room2:TRIG", "esp_master:4", "green", [ "v0" ] ],
-    [ "sonar_room1:TRIG", "esp_master:5", "green", [ "v28.8", "h321.16" ] ],
-    [ "sonar_room2:ECHO", "esp_master:19", "green", [ "v0" ] ]
+    [ "esp_master:GND.3", "led_room2:C", "black", [] ],
+
+    [ "esp_master:5V", "servo_in:V+", "red", [] ],
+    [ "esp_master:GND.3", "servo_in:GND", "black", [] ],
+    [ "esp_master:25", "servo_in:PWM", "gold", [] ],
+    [ "esp_master:5V", "servo_out:V+", "red", [] ],
+    [ "esp_master:GND.3", "servo_out:GND", "black", [] ],
+    [ "esp_master:26", "servo_out:PWM", "gold", [] ],
+
+    [ "esp_master:13", "bz1:2", "red", [] ],
+    [ "esp_master:GND.1", "bz1:1", "black", [] ],
+
+    [ "esp_master:15", "btn_emerg:1.l", "red", [] ],
+    [ "esp_master:GND.1", "btn_emerg:2.l", "black", [] ],
+
+    [ "esp_master:3V3", "ldr1:VCC", "red", [] ],
+    [ "esp_master:GND.1", "ldr1:GND", "black", [] ],
+    [ "esp_master:VP", "ldr1:AO", "yellow", [] ],
+
+    [ "esp_master:3V3", "oled1:VCC", "red", [] ],
+    [ "esp_master:GND.1", "oled1:GND", "black", [] ],
+    [ "esp_master:21", "oled1:SDA", "blue", [] ],
+    [ "esp_master:22", "oled1:SCL", "green", [] ],
+
+    [ "esp_master:3V3", "sd1:VCC", "red", [] ],
+    [ "esp_master:GND.1", "sd1:GND", "black", [] ],
+    [ "esp_master:4", "sd1:CS", "orange", [] ],
+    [ "esp_master:23", "sd1:DI", "blue", [] ],
+    [ "esp_master:19", "sd1:DO", "green", [] ],
+    [ "esp_master:18", "sd1:SCK", "purple", [] ]
   ],
   "dependencies": {}
 }
