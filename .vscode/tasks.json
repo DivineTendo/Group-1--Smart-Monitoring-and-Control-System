@@ -22,6 +22,17 @@
 			"group": "build",
 			"problemMatcher": [],
 			"detail": "CMake template build task"
+		},
+		{
+			"label": "PlatformIO: Build (no-space path)",
+			"type": "shell",
+			"command": "C:\\Users\\Divine\\.platformio\\penv\\Scripts\\platformio.exe",
+			"args": [
+				"run",
+				"--project-dir",
+				"C:\\Users\\Divine\\PlatformIOProjects\\SmartMonitoringControlSystem"
+			],
+			"problemMatcher": []
 		}
 	]
 }

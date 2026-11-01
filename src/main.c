@@ -1,5 +1,5 @@
 /*
- * CoCIS Smart Control and Monitoring System  -  single ESP32, single main.c
+* CoCIS Smart Control and Monitoring System  -  single ESP32, single main.c
  * ESP-IDF (>= 5.1) / PlatformIO / Wokwi
  *
  * Sections (match the five-module plan):
