@@ -13,6 +13,9 @@
     { "type": "wokwi-resistor", "id": "r2", "top": -110.4, "left": 162.65, "rotate": 270, "attrs": { "value": "220" } },
     { "type": "wokwi-led", "id": "led_room2", "top": -310.8, "left": 167, "attrs": { "color": "white", "label": "ROOM 2 LIGHT" } },
 
+    { "type": "board-mfrc522", "id": "rfid_entry", "top": -40, "left": -430, "attrs": { "uid": "01:02:03:04" } },
+    { "type": "board-mfrc522", "id": "rfid_exit", "top": 120, "left": -430, "attrs": { "uid": "01:02:03:04" } },
+
     { "type": "wokwi-servo", "id": "servo_in", "top": -60, "left": 420, "attrs": {} },
     { "type": "wokwi-servo", "id": "servo_out", "top": 40, "left": 420, "attrs": {} },
     { "type": "wokwi-buzzer", "id": "bz1", "top": -300, "left": 60, "attrs": { "volume": "0.1" } },
@@ -40,6 +43,22 @@
     [ "esp_master:27", "r2:1", "blue", [] ],
     [ "r2:2", "led_room2:A", "green", [] ],
     [ "esp_master:GND.3", "led_room2:C", "black", [] ],
+
+    [ "esp_master:3V3", "rfid_entry:3.3V", "red", [] ],
+    [ "esp_master:GND.1", "rfid_entry:GND", "black", [] ],
+    [ "esp_master:16", "rfid_entry:RST", "purple", [] ],
+    [ "esp_master:18", "rfid_entry:SCK", "purple", [] ],
+    [ "esp_master:23", "rfid_entry:MOSI", "blue", [] ],
+    [ "esp_master:19", "rfid_entry:MISO", "green", [] ],
+    [ "esp_master:5", "rfid_entry:SDA", "orange", [] ],
+
+    [ "esp_master:3V3", "rfid_exit:3.3V", "red", [] ],
+    [ "esp_master:GND.1", "rfid_exit:GND", "black", [] ],
+    [ "esp_master:16", "rfid_exit:RST", "purple", [] ],
+    [ "esp_master:18", "rfid_exit:SCK", "purple", [] ],
+    [ "esp_master:23", "rfid_exit:MOSI", "blue", [] ],
+    [ "esp_master:19", "rfid_exit:MISO", "green", [] ],
+    [ "esp_master:17", "rfid_exit:SDA", "orange", [] ],
 
     [ "esp_master:5V", "servo_in:V+", "red", [] ],
     [ "esp_master:GND.3", "servo_in:GND", "black", [] ],

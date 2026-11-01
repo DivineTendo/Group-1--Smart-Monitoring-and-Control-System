@@ -906,64 +906,106 @@ static bool ldr_bright(void)
 
 static void rooms_task(void *arg)
 {
+    (void)arg;
     const int led[2] = { PIN_LED_R1, PIN_LED_R2 };
-    bool hist[2][3] = { { 0 } }; int hidx[2] = { 0, 0 };
-    bool present[2] = { 0 }, light[2] = { 0 }, prev_p[2] = { 0 }, prev_l[2] = { 0 }, dl_logged[2] = { 0 };
-    int64_t last_seen[2] = { 0, 0 }, last_sonar[2] = { 0, 0 }, saved_acc[2] = { 0, 0 };
+    bool present[2] = { false, false };
+    bool light[2] = { false, false };
+    bool previous_present[2] = { false, false };
+    bool previous_light[2] = { false, false };
+    bool daylight_logged[2] = { false, false };
+    bool presence_history[2][3] = { { false } };
+    int history_index[2] = { 0, 0 };
+    int64_t last_seen[2] = { 0, 0 };
+    int64_t last_sonar[2] = { 0, 0 };
+    int64_t saved_ms[2] = { 0, 0 };
     int dist[2] = { -1, -1 };
-    int64_t last_ms = esp_timer_get_time() / 1000;
-    bool open_hours = true; int64_t last_sched_chk = 0;
+    int64_t previous_ms = esp_timer_get_time() / 1000;
+    bool open_hours = true;
+    int64_t last_schedule_check = 0;
 
     for (;;) {
         hb_beat(T_ROOMS);
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(250));
+
         int64_t now = esp_timer_get_time() / 1000;
-        int64_t dt = now - last_ms; last_ms = now;
+        int64_t elapsed_ms = now - previous_ms;
+        previous_ms = now;
         bool emg = emergency_active();
         bool bright = ldr_bright();
-        if (now - last_sched_chk > 5000) { open_hours = sched_is_open(time(NULL)); last_sched_chk = now; }
+        if (now - last_schedule_check >= 5000) {
+            open_hours = sched_is_open(time(NULL));
+            last_schedule_check = now;
+        }
 
-        for (int i = 0; i < 2; i++) {
-            if (now - last_sonar[i] >= 250) {
-                last_sonar[i] = now;
-                dist[i] = sonar_read_cm(i);
-                hist[i][hidx[i]++ % 3] = (dist[i] > 0 && dist[i] < ROOM_PRESENCE_CM);
-                present[i] = (hist[i][0] + hist[i][1] + hist[i][2]) >= 2;
+        for (int room = 0; room < 2; room++) {
+            /* Read each HC-SR04 and classify a person within 150 cm. */
+            if (now - last_sonar[room] >= 250) {
+                last_sonar[room] = now;
+                dist[room] = sonar_read_cm(room);
+
+                /* Ignore timeouts and require two of three readings to agree. */
+                if (dist[room] > 0) {
+                    int slot = history_index[room]++ % 3;
+                    presence_history[room][slot] =
+                        dist[room] < ROOM_PRESENCE_CM;
+                    int votes = presence_history[room][0] +
+                                presence_history[room][1] +
+                                presence_history[room][2];
+                    present[room] = votes >= 2;
+                }
             }
+
             if (emg) {
-                last_seen[i] = now;
-                light[i] = true;
-            } else if (present[i]) {
-                last_seen[i] = now;
-                if (!light[i]) {
-                    if (!bright) { light[i] = true; dl_logged[i] = false; }
-                    else if (!dl_logged[i]) { dl_logged[i] = true; log_event("ROOM", "R%d;DAYLIGHT_SKIP;ldr=%d", i + 1, g_ldr_raw); }
+                last_seen[room] = now;
+                light[room] = true;
+            } else if (present[room]) {
+                last_seen[room] = now;
+                if (!bright) {
+                    light[room] = true;
+                    daylight_logged[room] = false;
+                } else if (!daylight_logged[room]) {
+                    daylight_logged[room] = true;
+                    log_event("ROOM", "R%d;DAYLIGHT_SKIP;ldr=%d", room + 1, g_ldr_raw);
                 }
             } else {
-                dl_logged[i] = false;
-                if (light[i] && now - last_seen[i] >= ROOM_OFF_DELAY_MS) {
-                    light[i] = false;
-                    if (bus_lock(RES_DATA, 100)) { g_rooms[i].auto_offs++; bus_unlock(RES_DATA); }
+                daylight_logged[room] = false;
+                if (light[room] && now - last_seen[room] >= ROOM_OFF_DELAY_MS) {
+                    light[room] = false;
+                    if (bus_lock(RES_DATA, 100)) {
+                        g_rooms[room].auto_offs++;
+                        bus_unlock(RES_DATA);
+                    }
                 }
             }
 
-            int remaining_ms = light[i] && !present[i] && !emg ? (int)(ROOM_OFF_DELAY_MS - (now - last_seen[i])) : -1;
-            bool out = light[i];
-            if (remaining_ms >= 0 && remaining_ms <= ROOM_WARN_MS) out = ((now / 250) % 2) == 0;   /* warning blink */
-            gpio_set_level(led[i], out);
-
-            if (!light[i] && open_hours) saved_acc[i] += dt;
-            if (bus_lock(RES_DATA, 50)) {
-                g_rooms[i].dist_cm = dist[i];
-                g_rooms[i].off_in_s = remaining_ms >= 0 ? (remaining_ms + 999) / 1000 : -1;
-                g_rooms[i].saved_s += (uint32_t)(saved_acc[i] / 1000);
-                bus_unlock(RES_DATA);
-                saved_acc[i] %= 1000;
+            int remaining_ms = -1;
+            if (light[room] && !present[room] && !emg) {
+                remaining_ms = (int)(ROOM_OFF_DELAY_MS - (now - last_seen[room]));
             }
 
-            if (present[i] != prev_p[i] || light[i] != prev_l[i]) {
-                prev_p[i] = present[i]; prev_l[i] = light[i];
-                msg_t m = { MSG_ROOM_STATE, (uint8_t)i, present[i], light[i] };
+            bool output = light[room];
+            if (remaining_ms >= 0 && remaining_ms <= ROOM_WARN_MS) {
+                output = (now / 250) % 2 == 0;
+            }
+            gpio_set_level(led[room], output);
+
+            if (!light[room] && open_hours) {
+                saved_ms[room] += elapsed_ms;
+            }
+
+            if (bus_lock(RES_DATA, 50)) {
+                g_rooms[room].dist_cm = dist[room];
+                g_rooms[room].off_in_s = remaining_ms >= 0 ? (remaining_ms + 999) / 1000 : -1;
+                g_rooms[room].saved_s += (uint32_t)(saved_ms[room] / 1000);
+                bus_unlock(RES_DATA);
+                saved_ms[room] %= 1000;
+            }
+
+            if (present[room] != previous_present[room] ||
+                light[room] != previous_light[room]) {
+                previous_present[room] = present[room];
+                previous_light[room] = light[room];
+                msg_t m = { MSG_ROOM_STATE, (uint8_t)room, present[room], light[room] };
                 xQueueSend(g_q_msg, &m, 0);
             }
         }
