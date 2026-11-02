@@ -385,6 +385,19 @@ static uint8_t rc_read(int r, uint8_t reg)
     spi_device_transmit(g_rc[r], &t);
     return rx[1];
 }
+static void rc_read_fifo(int r, uint8_t *data, int count)
+{
+    if (count <= 0 || count > 64) return;
+    uint8_t tx[65] = { 0 }, rx[65] = { 0 };
+    const uint8_t address = (uint8_t)(((RC_FIFODataReg << 1) & 0x7E) | 0x80);
+    tx[0] = address;
+    for (int i = 1; i < count; i++) tx[i] = address;
+    spi_transaction_t t = {
+        .length = (count + 1) * 8, .tx_buffer = tx, .rx_buffer = rx,
+    };
+    spi_device_transmit(g_rc[r], &t);
+    memcpy(data, &rx[1], count);
+}
 static void rc_write(int r, uint8_t reg, uint8_t v)
 {
     uint8_t tx[2] = { (uint8_t)((reg << 1) & 0x7E), v };
@@ -399,10 +412,11 @@ static void rc_init(int r)
 {
     rc_write(r, RC_CommandReg, 0x0F);            /* soft reset */
     vTaskDelay(pdMS_TO_TICKS(50));
-    rc_write(r, RC_TModeReg, 0x8D);
-    rc_write(r, RC_TPrescalerReg, 0x3E);
-    rc_write(r, RC_TReloadRegL, 30);
-    rc_write(r, RC_TReloadRegH, 0);
+    /* Standard MFRC522 auto-timeout: 40 kHz timer, about 25 ms. */
+    rc_write(r, RC_TModeReg, 0x80);
+    rc_write(r, RC_TPrescalerReg, 0xA9);
+    rc_write(r, RC_TReloadRegH, 0x03);
+    rc_write(r, RC_TReloadRegL, 0xE8);
     rc_write(r, RC_TxASKReg, 0x40);
     rc_write(r, RC_ModeReg, 0x3D);
     if (!(rc_read(r, RC_TxControlReg) & 0x03)) rc_setbits(r, RC_TxControlReg, 0x03);
@@ -417,15 +431,20 @@ static int rc_transceive(int r, const uint8_t *send, int sl, uint8_t *back, int 
     rc_write(r, RC_BitFramingReg, txbits);
     rc_write(r, RC_CommandReg, 0x0C);
     rc_setbits(r, RC_BitFramingReg, 0x80);
-    int i = 2000; uint8_t n;
-    do { n = rc_read(r, RC_ComIrqReg); } while (--i && !(n & 0x31));
+    uint8_t n = 0;
+    int64_t deadline = esp_timer_get_time() + 40000;
+    do {
+        n = rc_read(r, RC_ComIrqReg);
+        if (n & 0x31) break;                       /* Rx, Idle, or timer IRQ */
+        vTaskDelay(pdMS_TO_TICKS(1));              /* Don't starve the simulator */
+    } while (esp_timer_get_time() < deadline);
     rc_clrbits(r, RC_BitFramingReg, 0x80);
-    if (!i) return -1;
-    if (rc_read(r, RC_ErrorReg) & 0x1B) return -2;
+    if (!(n & 0x31)) return -1;
+    if (rc_read(r, RC_ErrorReg) & 0x13) return -2; /* overflow, CRC, parity/protocol */
     if (n & 0x01) return -3;                      /* timer: no card */
     int cnt = rc_read(r, RC_FIFOLevelReg);
     if (cnt > *bl) cnt = *bl;
-    for (int k = 0; k < cnt; k++) back[k] = rc_read(r, RC_FIFODataReg);
+    rc_read_fifo(r, back, cnt);
     *bl = cnt;
     return 0;
 }
@@ -562,6 +581,8 @@ acc_result_t access_handle_scan(dir_t dir, const char *uid_in)
 
     static const char *RN[] = { "GRANTED", "DENIED_UNKNOWN", "DENIED_SCHEDULE", "DENIED_PASSBACK", "DENIED_LOCKOUT" };
     log_event("ACCESS", "%s;%s;%s;%s", dir == DIR_ENTRY ? "ENTRY" : "EXIT", RN[res], uid, name);
+        printf("[RFID] %s UID %s -> %s (%s)\n",
+            dir == DIR_ENTRY ? "ENTRY" : "EXIT", uid, RN[res], name);
     if (res == ACC_GRANTED) { door_open(dir); buzz(BUZ_OK); }
     else buzz(BUZ_DENY);
     if (lockout_started) {
@@ -582,8 +603,8 @@ static void reader_task(void *arg)
             if (!g_rc_present[r]) continue;
             char uid[UID_LEN]; bool got = false;
             if (bus_lock(RES_SPI, 100)) { got = rc_read_uid(r, uid); bus_unlock(RES_SPI); }
-            if (!got) continue;
             int64_t now = esp_timer_get_time() / 1000;
+            if (!got) continue;
             if (strcmp(uid, last_uid[r]) == 0 && now - last_ms[r] < 2000) { last_ms[r] = now; continue; }
             snprintf(last_uid[r], UID_LEN, "%s", uid); last_ms[r] = now;
             access_handle_scan(r == 0 ? DIR_ENTRY : DIR_EXIT, uid);
