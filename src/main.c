@@ -86,7 +86,7 @@
 #define ROOM_PRESENCE_CM    150       /* sonar closer than this = someone is there   */
 #define ROOM_LIGHT_WATTS    36
 #define LDR_BRIGHT_RAW      2500      /* above this = daylight (flip LDR_INVERT if sensor is opposite) */
-#define LDR_INVERT          0
+#define LDR_INVERT          1
 #define GHOST_CONFIRM_MS    5000
 #define TASK_TIMEOUT_MS     8000
 #define SESSION_MS          120000
