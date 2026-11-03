@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "author": "group1",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp_master", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-hc-sr04", "id": "sonar_room1", "top": -46.5, "left": -253.7, "attrs": {} },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 13,
+      "left": -96.85,
+      "rotate": 270,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_room1",
+      "top": -80.4,
+      "left": -82.2,
+      "attrs": { "color": "white", "label": "ROOM 1 LIGHT", "flip": "1" }
+    },
+    { "type": "wokwi-hc-sr04", "id": "sonar_room2", "top": -46.5, "left": 159.1, "attrs": {} },
+    {
+      "type": "wokwi-resistor",
+      "id": "r2",
+      "top": 3.4,
+      "left": 114.35,
+      "rotate": 270,
+      "attrs": { "value": "220" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led_room2",
+      "top": -80.4,
+      "left": 119,
+      "attrs": { "color": "white", "label": "ROOM 2 LIGHT" }
+    },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": 224, "left": -220, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp_master:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp_master:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp_master:5V", "sonar_room1:VCC", "red", [ "h-148.61", "v-134.4", "h-48" ] ],
+    [ "esp_master:GND.1", "sonar_room1:GND", "black", [ "h-148.61", "v-86.4", "h-18" ] ],
+    [ "esp_master:32", "sonar_room1:TRIG", "purple", [ "h-148.61", "v-19.2", "h-38" ] ],
+    [ "esp_master:34", "sonar_room1:ECHO", "orange", [ "h-148.61", "h-28" ] ],
+    [ "esp_master:14", "r1:1", "green", [] ],
+    [ "r1:2", "led_room1:A", "green", [] ],
+    [ "esp_master:GND.1", "led_room1:C", "black", [] ],
+    [ "esp_master:5V", "sonar_room2:VCC", "red", [ "h-14.21", "v28.8", "h288" ] ],
+    [ "esp_master:GND.3", "sonar_room2:GND", "black", [] ],
+    [
+      "esp_master:33",
+      "sonar_room2:TRIG",
+      "purple",
+      [ "h-14.21", "v-105.6", "h134.4", "v86.4", "h115.6" ]
+    ],
+    [
+      "esp_master:35",
+      "sonar_room2:ECHO",
+      "orange",
+      [ "h-14.21", "v-86.4", "h134.4", "v86.4", "h125.6" ]
+    ],
+    [ "esp_master:27", "r2:1", "green", [ "h-14.21", "v-134.4", "h134.4", "v67.2", "h19.2" ] ],
+    [ "r2:2", "led_room2:A", "green", [] ],
+    [ "esp_master:GND.3", "led_room2:C", "black", [] ],
+    [ "esp_master:3V3", "ldr1:VCC", "red", [ "h-33.41", "v211.2" ] ],
+    [ "esp_master:GND.1", "ldr1:GND", "black", [ "h-23.81", "v96.4" ] ],
+    [ "esp_master:VP", "ldr1:AO", "yellow", [ "h-43.01", "v221.5" ] ]
+  ],
+  "dependencies": {}
+}

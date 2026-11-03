@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "author": "group1",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp_master", "top": 0, "left": 0, "attrs": {} },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid_entry",
+      "top": -98.65,
+      "left": -399.76,
+      "rotate": 180,
+      "attrs": { "uid": "01:02:03:04" }
+    },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid_exit",
+      "top": 110.85,
+      "left": -401.24,
+      "rotate": 180,
+      "attrs": { "uid": "01:02:03:04" }
+    },
+    { "type": "wokwi-servo", "id": "servo_in", "top": -2, "left": 336, "attrs": {} },
+    { "type": "wokwi-servo", "id": "servo_out", "top": 142, "left": 336, "attrs": {} },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -141.6,
+      "left": 88.2,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "esp_master:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp_master:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp_master:3V3", "rfid_entry:3.3V", "red", [ "h-167.81", "v-84.7" ] ],
+    [ "esp_master:GND.1", "rfid_entry:GND", "black", [ "h-167.81", "v-190.3" ] ],
+    [ "esp_master:16", "rfid_entry:RST", "purple", [ "h33.64", "v-144", "h-297.6", "v-36.7" ] ],
+    [ "esp_master:18", "rfid_entry:SCK", "purple", [ "h33.64", "v-115.2", "h-297.6", "v11.3" ] ],
+    [ "esp_master:23", "rfid_entry:MOSI", "blue", [ "h33.64", "v-48", "h-297.6", "v1.7" ] ],
+    [ "esp_master:19", "rfid_entry:MISO", "green", [ "h33.64", "v-105.6", "h-297.6", "v-7.9" ] ],
+    [ "esp_master:5", "rfid_entry:SDA", "orange", [ "h33.64", "v-124.8", "h-297.6", "v20.9" ] ],
+    [ "esp_master:3V3", "rfid_exit:3.3V", "red", [ "h-167.81", "v124.8" ] ],
+    [ "esp_master:GND.1", "rfid_exit:GND", "black", [ "h-167.81", "v19.2" ] ],
+    [ "esp_master:16", "rfid_exit:RST", "purple", [ "h33.64", "v-144", "h-297.6", "v172.8" ] ],
+    [ "esp_master:18", "rfid_exit:SCK", "purple", [ "h33.64", "v-115.2", "h-297.6", "v220.8" ] ],
+    [ "esp_master:23", "rfid_exit:MOSI", "blue", [ "h33.64", "v-48", "h-297.6", "v211.2" ] ],
+    [ "esp_master:19", "rfid_exit:MISO", "green", [ "h33.64", "v-105.6", "h-297.6", "v201.6" ] ],
+    [ "esp_master:17", "rfid_exit:SDA", "orange", [ "h33.64", "v-134.4", "h-297.6", "v230.4" ] ],
+    [ "esp_master:5V", "servo_in:V+", "red", [ "h-14.21", "v28.8", "h336", "v-172.9" ] ],
+    [ "esp_master:GND.3", "servo_in:GND", "black", [ "h225.64", "v-38.4" ] ],
+    [ "esp_master:25", "servo_in:PWM", "gold", [ "h-14.21", "v-115.2", "h336", "v76.6" ] ],
+    [ "esp_master:5V", "servo_out:V+", "red", [ "h-14.21", "v28.8", "h336", "v-28.9" ] ],
+    [ "esp_master:GND.3", "servo_out:GND", "black", [ "h225.64", "v105.6" ] ],
+    [ "esp_master:26", "servo_out:PWM", "gold", [ "h-23.81", "v134.4", "h345.6", "v-38.6" ] ],
+    [ "esp_master:13", "bz1:2", "red", [ "h-14.21", "v67.2", "h134.4", "v-278.4", "h-57.2" ] ],
+    [
+      "esp_master:GND.1",
+      "bz1:1",
+      "black",
+      [ "h-23.81", "v86.4", "h134.4", "v-278.4", "h-57.6" ]
+    ]
+  ],
+  "dependencies": {}
+}

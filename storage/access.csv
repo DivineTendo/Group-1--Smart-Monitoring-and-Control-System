@@ -1,0 +1,15 @@
+timestamp,event,detail
+2026-11-02 12:00:00,SYSTEM,boot;sd=1;rc522=1/1
+2026-11-02 12:00:22,ROOM,R1;presence=1;light=1
+2026-11-02 12:00:28,ALERT,GHOST_OCCUPANCY;Room 1 active but building count is 0
+2026-11-02 12:00:30,ROOM,R1;presence=0;light=1
+2026-11-02 12:01:00,ROOM,R1;presence=0;light=0
+2026-11-02 12:01:07,EMERGENCY,ACTIVATED;by=BUTTON
+2026-11-02 12:01:07,EVAC,roster;count=0
+2026-11-02 12:01:07,EVAC,inside;01:02:03:04;Alice Namuli
+2026-11-02 12:01:07,EVAC,inside;AA:BB:CC:DD;Dr Mukasa
+2026-11-02 12:01:07,ROOM,R1;presence=0;light=1
+2026-11-02 12:01:07,ROOM,R2;presence=0;light=1
+2026-11-02 12:01:28,EMERGENCY,CLEARED;by=admin
+2026-11-02 12:01:58,ROOM,R1;presence=0;light=0
+2026-11-02 12:01:58,ROOM,R2;presence=0;light=0

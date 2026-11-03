@@ -2,3 +2,8 @@
 version = 1
 firmware = '.pio/build/az-delivery-devkit-v4/firmware.bin'
 elf = '.pio/build/az-delivery-devkit-v4/firmware.elf'
+
+[[sdcard]]
+folder = 'storage'   # directory to copy to the card
+size = '32M'           # card capacity (default: 8M, maximum: 256M)
+writeback = true       # write the card contents back to the folder/image when the simulation stops
