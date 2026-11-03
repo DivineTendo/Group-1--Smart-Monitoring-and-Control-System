@@ -31,8 +31,7 @@ void sd_card_setup(void)
     slot.gpio_cs = PIN_SD_CS;
     slot.host_id = SPI2_HOST;
 
-    esp_err_t err = esp_vfs_fat_sdspi_mount(MOUNT_POINT, &host, &slot,
-                                            &mount_config, &sd_card);
+    esp_err_t err = esp_vfs_fat_sdspi_mount(MOUNT_POINT, &host, &slot, &mount_config, &sd_card);
     sd_card_ok = (err == ESP_OK);
 
     if (sd_card_ok)
@@ -41,8 +40,7 @@ void sd_card_setup(void)
     }
     else
     {
-        ESP_LOGW(TAG, "SD mount failed (%s) - RAM ring only",
-                 esp_err_to_name(err));
+        ESP_LOGW(TAG, "SD mount failed (%s) - RAM ring only", esp_err_to_name(err));
     }
 }
 

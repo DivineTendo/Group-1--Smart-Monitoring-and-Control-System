@@ -186,7 +186,7 @@ void clock_init(void)
         struct tm tm = {0};
         tm.tm_year = 2026 - 1900;
         tm.tm_mon = 10;
-        tm.tm_mday = 2;
+        tm.tm_mday = 4;
         tm.tm_hour = 12;
         tm.tm_min = 0;
         tm.tm_sec = 0;

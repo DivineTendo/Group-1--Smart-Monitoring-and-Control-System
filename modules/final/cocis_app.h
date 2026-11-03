@@ -90,6 +90,12 @@
 #define USERS_TMP MOUNT_POINT "/users.tmp"
 
 /* ==================================================================
+ * WIFI DEFAULT SETTINGS
+ * ================================================================== */
+#define WIFI_DEFAULT_SSID   "Wokwi-GUEST"
+#define WIFI_DEFAULT_PASS   ""
+
+/* ==================================================================
  * TYPES
  * ================================================================== */
 typedef enum
@@ -275,5 +281,14 @@ void display_task(void *arg);
 
 /* cli.c */
 void cli_task(void *arg);
+
+/* wifi.c */
+bool wifi_start(void);
+bool wifi_is_connected(void);
+bool time_is_synced(void);
+const char *wifi_get_ip(void);
+void wifi_print_status(void);
+bool wifi_save_credentials(const char *ssid, const char *password);
+void wifi_reconnect(void);
 
 #endif

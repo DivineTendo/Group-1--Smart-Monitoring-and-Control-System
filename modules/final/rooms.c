@@ -6,17 +6,13 @@ static adc_oneshot_unit_handle_t adc_handle;
 void rooms_gpio_init(void)
 {
     gpio_config_t output_pins = {
-        .pin_bit_mask = (1ULL << PIN_LED_R1) |
-                        (1ULL << PIN_LED_R2) |
-                        (1ULL << PIN_SONAR1_TRIG) |
-                        (1ULL << PIN_SONAR2_TRIG),
+        .pin_bit_mask = (1ULL << PIN_LED_R1) | (1ULL << PIN_LED_R2) | (1ULL << PIN_SONAR1_TRIG) | (1ULL << PIN_SONAR2_TRIG),
         .mode = GPIO_MODE_OUTPUT
     };
     gpio_config(&output_pins);
 
     gpio_config_t input_pins = {
-        .pin_bit_mask = (1ULL << PIN_SONAR1_ECHO) |
-                        (1ULL << PIN_SONAR2_ECHO),
+        .pin_bit_mask = (1ULL << PIN_SONAR1_ECHO) | (1ULL << PIN_SONAR2_ECHO),
         .mode = GPIO_MODE_INPUT
     };
     gpio_config(&input_pins);

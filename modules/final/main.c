@@ -1,5 +1,7 @@
 #include "cocis_app.h"
 
+static const char *TAG = "COCIS_MAIN";
+
 void app_main(void)
 {
     /* Create resource mutexes */
@@ -17,6 +19,12 @@ void app_main(void)
     clock_init();
     config_load();
     auth_init();
+
+    if (wifi_start()) {
+        ESP_LOGI(TAG, "WiFi started successfully.");
+    } else {
+        ESP_LOGE(TAG, "WiFi failed to start!");
+    }
 
     /* Peripheral setup (each in its own module) */
     init_access_servos();
