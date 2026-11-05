@@ -50,8 +50,8 @@
 #define PIN_I2C_SDA         21
 #define PIN_I2C_SCL         22
 #define OLED_ADDR           0x3C
-#define SERVO_1 26
-#define SERVO_2 25
+#define SERVO_ENTRY_PIN     25
+#define SERVO_EXIT_PIN      26
 #define PIN_BUZZER 13
 #define PIN_EMERG_BTN 15
 #define PIN_LED_R1 14
@@ -67,7 +67,7 @@
 #define ROOM_PRESENCE_CM 150
 #define ROOM_LIGHT_WATTS 36
 #define LDR_BRIGHT_RAW 2500
-#define LDR_INVERT 0
+#define LDR_INVERT 1
 #define GHOST_CONFIRM_MS 5000
 #define TASK_TIMEOUT_MS 8000
 #define SESSION_MS 120000
@@ -253,7 +253,7 @@ void buzzer_task(void *arg);
 void set_servo_angle(int angle, int servo);
 void init_access_servos(void);
 void buzzer_ledc_setup(void);
-void opendoors(void);
+void open_door(direction_t direction);
 user_t *find_user(const char *uid);
 access_result_t access_handle_scan(direction_t direction, const char *uid_input);
 void reader_task(void *arg);

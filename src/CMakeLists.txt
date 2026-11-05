@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.c"
+    SRCS "main.c" "sync.c" "config.c" "rfid.c" "access.c" "storage_logger.c" "rooms.c" "wifi.c" "cocis_system.c" "cli.c"
     REQUIRES driver esp_adc nvs_flash fatfs sdmmc mbedtls esp_timer esp_rom esp_system
 )
 

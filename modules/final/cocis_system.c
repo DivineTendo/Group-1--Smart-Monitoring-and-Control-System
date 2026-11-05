@@ -35,7 +35,7 @@ void emergency_set(bool on, const char *who)
         set_servo_angle(90, 1);
     } else {
         set_servo_angle(0, 0);
-        set_servo_angle(180, 1);
+        set_servo_angle(0, 1);
     }
 
 

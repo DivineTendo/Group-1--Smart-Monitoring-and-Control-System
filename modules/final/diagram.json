@@ -3,7 +3,7 @@
   "author": "group1",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-c-v4", "id": "esp_master", "top": 0, "left": 0, "attrs": {} },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp_master", "top": 0, "left": 0, "attrs": { "builder": "esp-idf" } },
     { "type": "wokwi-hc-sr04", "id": "sonar_room1", "top": -257.7, "left": -282.5, "attrs": {} },
     {
       "type": "wokwi-resistor",
@@ -84,7 +84,35 @@
       "left": 0.23,
       "attrs": { "i2cAddress": "0x3c" }
     },
-    { "type": "wokwi-microsd-card", "id": "sd1", "top": 288.23, "left": 124.87, "attrs": {} }
+    { "type": "wokwi-microsd-card", "id": "sd1", "top": 288.23, "left": 124.87, "attrs": {} },
+    {
+      "type": "wokwi-text",
+      "id": "text1",
+      "top": 86.4,
+      "left": 403.2,
+      "attrs": { "text": "ENTRANCE" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text2",
+      "top": 230.4,
+      "left": 403.2,
+      "attrs": { "text": "EXIT" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text3",
+      "top": 57.6,
+      "left": -374.4,
+      "attrs": { "text": "ENTRANCE SCANNER" }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "text4",
+      "top": 268.8,
+      "left": -355.2,
+      "attrs": { "text": "EXIT SCANNER" }
+    }
   ],
   "connections": [
     [ "esp_master:TX", "$serialMonitor:RX", "", [] ],

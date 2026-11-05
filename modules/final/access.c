@@ -114,7 +114,7 @@ void init_access_servos(void)
     ledc_channel_config_t channel1 = {
         .channel = LEDC_CHANNEL_0,
         .timer_sel = LEDC_TIMER_0,
-        .gpio_num = SERVO_1,
+        .gpio_num = SERVO_ENTRY_PIN,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .intr_type = LEDC_INTR_DISABLE,
         .duty = 0,
@@ -123,7 +123,7 @@ void init_access_servos(void)
     ledc_channel_config_t channel2 = {
         .channel = LEDC_CHANNEL_1,
         .timer_sel = LEDC_TIMER_0,
-        .gpio_num = SERVO_2,
+        .gpio_num = SERVO_EXIT_PIN,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .intr_type = LEDC_INTR_DISABLE,
         .duty = 0,
@@ -133,33 +133,33 @@ void init_access_servos(void)
     ledc_channel_config(&channel2);
 
     set_servo_angle(0, 0);
-    set_servo_angle(180, 1);
+    set_servo_angle(0, 1);
 }
 
 /* Open both doors */
-void opendoors(void)
+void open_door(direction_t direction)
 {
-    /* If emergency is already active, force doors open and do not close */
+    int servo = (direction == DIRECTION_ENTRY) ? 0 : 1;
+
+    /* If emergency is already active, force both doors open */
     if (emergency_active()) {
         set_servo_angle(90, 0);
         set_servo_angle(90, 1);
         return;
     }
 
-    /* Normal access: open both doors for 2 seconds */
-    set_servo_angle(90, 0);
-    set_servo_angle(90, 1);
+    /* Normal access: open only this door for 2 seconds */
+    set_servo_angle(90, servo);
 
     vTaskDelay(pdMS_TO_TICKS(2000));
 
-    /* If emergency was activated while doors were open, keep them open */
+    /* If emergency was activated while this door was open, keep it open */
     if (emergency_active()) {
         return;
     }
 
-    /* Close both doors */
-    set_servo_angle(0, 0);
-    set_servo_angle(180, 1);
+    /* Close only this door */
+    set_servo_angle(0, servo);
 }
 
 /* ================================================================
@@ -217,7 +217,7 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
 
     if (result == ACCESS_GRANTED) {
         buzz(BUZZER_OK);
-        opendoors();
+        open_door(direction);
     } else {
         buzz(BUZZER_DENIED);
     }
