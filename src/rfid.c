@@ -213,17 +213,13 @@ void rc522_setup(void)
             .spics_io_num = chip_select_pins[reader],
             .queue_size = 2
         };
-        ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &device_config,
-                                           &rfid_readers[reader]));
+        ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &device_config, &rfid_readers[reader]));
 
         rc_init(reader);
         uint8_t version = rc_read(reader, RC_VERSION_REG);
         rfid_reader_present[reader] = (version != 0x00 && version != 0xFF);
 
-        ESP_LOGI(TAG, "RC522 %s: version 0x%02X (%s)",
-                 reader == 0 ? "ENTRY" : "EXIT",
-                 version,
-                 rfid_reader_present[reader] ? "present" : "not detected");
+        ESP_LOGI(TAG, "RC522 %s: version 0x%02X (%s)", reader == 0 ? "ENTRY" : "EXIT", version, rfid_reader_present[reader] ? "present" : "not detected");
     }
 }
 

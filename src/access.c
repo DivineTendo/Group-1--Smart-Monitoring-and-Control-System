@@ -163,7 +163,7 @@ void open_door(direction_t direction)
 }
 
 /* ================================================================
- * ACCESS LOGIC  (eria.c version)
+ * ACCESS LOGIC
  * ================================================================ */
 user_t *find_user(const char *uid)
 {

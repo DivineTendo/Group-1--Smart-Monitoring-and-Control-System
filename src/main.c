@@ -57,10 +57,7 @@ void app_main(void)
     uart_driver_install(UART_NUM_0, 512, 0, 0, NULL, 0);
     xTaskCreate(cli_task, "cli", 8192, NULL, 2, NULL);
 
-    log_event("SYSTEM", "boot;sd=%d;rc522=%d/%d",
-              sd_card_ok,
-              rfid_reader_present[0],
-              rfid_reader_present[1]);
+    log_event("SYSTEM", "boot;sd=%d;rc522=%d/%d", sd_card_ok, rfid_reader_present[0], rfid_reader_present[1]);
 
     printf("\n=== CoCIS Smart Control & Monitoring System ===\n");
     printf("Type 'help' for commands.\n");

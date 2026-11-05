@@ -3,7 +3,13 @@
   "author": "group1",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-c-v4", "id": "esp_master", "top": 0, "left": 0, "attrs": { "builder": "esp-idf" } },
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp_master",
+      "top": 0,
+      "left": 0,
+      "attrs": { "builder": "esp-idf" }
+    },
     { "type": "wokwi-hc-sr04", "id": "sonar_room1", "top": -257.7, "left": -282.5, "attrs": {} },
     {
       "type": "wokwi-resistor",
@@ -80,9 +86,9 @@
     {
       "type": "wokwi-lcd1602",
       "id": "lcd1",
-      "top": 350.54,
-      "left": 0.23,
-      "attrs": {"pins": "i2c","i2cAddress": "0x27"}
+      "top": 371.2,
+      "left": -4,
+      "attrs": { "pins": "i2c", "i2cAddress": "0x27" }
     },
     { "type": "wokwi-microsd-card", "id": "sd1", "top": 288.23, "left": 124.87, "attrs": {} },
     {
@@ -163,10 +169,10 @@
     [ "esp_master:3V3", "ldr1:VCC", "red", [] ],
     [ "esp_master:GND.1", "ldr1:GND", "black", [] ],
     [ "esp_master:VP", "ldr1:AO", "yellow", [] ],
-    [ "esp_master:5V", "lcd1:VCC", "red", [] ],
-    [ "esp_master:GND.1", "lcd1:GND", "black", [] ],
-    [ "esp_master:21", "lcd1:SDA", "blue", [] ],
-    [ "esp_master:22", "lcd1:SCL", "green", [] ],
+    [ "esp_master:5V", "lcd1:VCC", "red", [ "h-14.21", "v96", "v94.44" ] ],
+    [ "esp_master:GND.1", "lcd1:GND", "black", [ "h-23.81", "v144", "h9.6", "v84.94" ] ],
+    [ "esp_master:21", "lcd1:SDA", "blue", [ "h14.44", "v220.8", "h-124.8", "v103.94" ] ],
+    [ "esp_master:22", "lcd1:SCL", "green", [ "h14.44", "v249.6", "h-124.8", "v113.44" ] ],
     [ "esp_master:3V3", "sd1:VCC", "red", [ "v-28.8", "h216.19", "v335.86" ] ],
     [ "esp_master:GND.1", "sd1:GND", "black", [ "h-23.81", "v86.4", "h240", "v76.69" ] ],
     [ "esp_master:4", "sd1:CS", "orange", [ "h120.04", "v211.14" ] ],

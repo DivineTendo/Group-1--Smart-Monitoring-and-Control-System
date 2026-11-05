@@ -273,7 +273,8 @@ void display_task(void *arg)
     // Initialize the LCD once before entering the display loop.
     lcd_init();
 
-    for (;;) {
+    while (1)
+    {
         update_task_heartbeat(TASK_DISPLAY);
 
         int inside = 0;
