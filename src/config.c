@@ -3,6 +3,11 @@
 /* ---- schedule ---- */
 bool schedule_is_open(time_t now)
 {
+    /* During stress test, force schedule open */
+    if (stress_test_active) {
+        return true;
+    }
+    
     uint16_t start;
     uint16_t end;
 

@@ -35,6 +35,7 @@ volatile uint32_t log_dropped_count;
 volatile bool echo_log = true;
 
 bool rfid_reader_present[2];
+volatile bool stress_test_active = false;
 
 /* ---- locking ---- */
 bool lock_resource(resource_t resource, uint32_t timeout_ms)

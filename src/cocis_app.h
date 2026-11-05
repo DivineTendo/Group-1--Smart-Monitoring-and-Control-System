@@ -281,6 +281,7 @@ void display_task(void *arg);
 
 /* cli.c */
 void cli_task(void *arg);
+extern volatile bool stress_test_active;
 
 /* wifi.c */
 bool wifi_start(void);

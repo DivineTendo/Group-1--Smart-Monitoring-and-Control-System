@@ -236,10 +236,15 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
     printf("[RFID] %s UID %s -> %s (%s)\n", direction == DIRECTION_ENTRY ? "ENTRY" : "EXIT", uid, result_names[result], name);
 
     if (result == ACCESS_GRANTED) {
-        buzz(BUZZER_OK);
-        open_door(direction);
+        /* During stress test, do not operate door or buzzer */
+        if (!stress_test_active) {
+            buzz(BUZZER_OK);
+            open_door(direction);
+        }
     } else {
-        buzz(BUZZER_DENIED);
+        if (!stress_test_active) {
+            buzz(BUZZER_DENIED);
+        }
     }
 
     return result;

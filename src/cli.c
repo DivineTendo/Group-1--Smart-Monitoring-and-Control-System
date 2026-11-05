@@ -14,6 +14,183 @@ static int bad_login_count = 0;
 static int64_t login_locked_until = 0;
 static char new_password[40];
 
+static SemaphoreHandle_t stress_done_semaphore;
+static char stress_uids[4][UID_LEN];
+
+/* ==================================================================
+ * CONCURRENCY STRESS TEST
+ * ================================================================== */
+static void stress_worker(void *arg)
+{
+    int base = (int)(intptr_t)arg;
+
+    /*
+     * Each worker uses two different registered users.
+     * Worker 0 uses users 0 and 1.
+     * Worker 1 uses users 2 and 3.
+     */
+    for (int i = 0; i < 40; i++) {
+        access_handle_scan(DIRECTION_ENTRY, stress_uids[base * 2]);
+        access_handle_scan(DIRECTION_ENTRY, stress_uids[base * 2 + 1]);
+
+        access_handle_scan(DIRECTION_EXIT, stress_uids[base * 2]);
+        access_handle_scan(DIRECTION_EXIT, stress_uids[base * 2 + 1]);
+
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    xSemaphoreGive(stress_done_semaphore);
+    vTaskDelete(NULL);
+}
+
+static void run_stress(void)
+{
+    printf("stress: 2 scanner tasks x 160 scans while CLI reads occupancy...\n");
+
+    /* Find four registered users to use for the test */
+    if (!lock_resource(RESOURCE_DATA, 300)) {
+        printf("stress: access system busy\n");
+        return;
+    }
+
+    int found = 0;
+
+    for (int i = 0; i < MAX_USERS && found < 4; i++) {
+        if (registered_users[i].used) {
+            snprintf(stress_uids[found],
+                     UID_LEN,
+                     "%s",
+                     registered_users[i].uid);
+            found++;
+        }
+    }
+
+    unlock_resource(RESOURCE_DATA);
+
+    if (found < 4) {
+        printf("stress needs at least 4 registered users\n");
+        return;
+    }
+
+    /* Counters before test */
+    uint32_t timeouts_before = 0;
+
+    for (int i = 0; i < RESOURCE_COUNT; i++) {
+        timeouts_before += resource_lock_timeouts[i];
+    }
+
+    uint32_t drops_before = log_dropped_count;
+
+    bool old_echo = echo_log;
+    echo_log = false;
+
+    /* Force schedule open and suppress doors/buzzer during stress */
+    stress_test_active = true;
+
+    stress_done_semaphore = xSemaphoreCreateCounting(2, 0);
+
+    xTaskCreate(stress_worker, "stress0", 6144, (void *)0, 5, NULL);
+    xTaskCreate(stress_worker, "stress1", 6144, (void *)1, 5, NULL);
+
+    int reads = 0;
+    int bad_snapshots = 0;
+    int done = 0;
+
+    /*
+     * While workers scan, repeatedly read occupancy and compare
+     * the user inside flags with people_inside_count.
+     */
+    while (done < 2) {
+        if (xSemaphoreTake(stress_done_semaphore, 0) == pdTRUE) {
+            done++;
+        }
+
+        if (lock_resource(RESOURCE_DATA, 200)) {
+            int counted = 0;
+
+            for (int i = 0; i < MAX_USERS; i++) {
+                if (registered_users[i].used && registered_users[i].inside) {
+                    counted++;
+                }
+            }
+
+            if (counted != people_inside_count) {
+                bad_snapshots++;
+            }
+
+            unlock_resource(RESOURCE_DATA);
+        }
+
+        reads++;
+
+        /* Keep CLI heartbeat alive so supervisor does not flag CLI */
+        update_task_heartbeat(TASK_CLI);
+
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+
+    stress_test_active = false;
+    echo_log = old_echo;
+
+    /* Final consistency check */
+    int counted = 0;
+    int final_inside = 0;
+
+    if (lock_resource(RESOURCE_DATA, 200)) {
+        for (int i = 0; i < MAX_USERS; i++) {
+            if (registered_users[i].used && registered_users[i].inside) {
+                counted++;
+            }
+        }
+
+        final_inside = people_inside_count;
+
+        unlock_resource(RESOURCE_DATA);
+    }
+
+    /* Counters after test */
+    uint32_t timeouts_after = 0;
+
+    for (int i = 0; i < RESOURCE_COUNT; i++) {
+        timeouts_after += resource_lock_timeouts[i];
+    }
+
+    uint32_t timeout_delta = timeouts_after - timeouts_before;
+    uint32_t drop_delta = log_dropped_count - drops_before;
+
+    printf("stress: %d CLI reads, %d inconsistent snapshots, "
+           "final count %d (flags %d), lock timeouts %u, log drops %u\n",
+           reads,
+           bad_snapshots,
+           final_inside,
+           counted,
+           (unsigned)timeout_delta,
+           (unsigned)drop_delta);
+
+    /*
+     * PASS/FAIL is based on:
+     * - zero inconsistent occupancy snapshots
+     * - final count matches user flags
+     * - zero new lock timeouts
+     *
+     * Dropped log lines are reported but not used for PASS/FAIL.
+     */
+    bool pass = (bad_snapshots == 0 &&
+                 counted == final_inside &&
+                 timeout_delta == 0);
+
+    printf("stress: %s\n", pass ? "PASS" : "FAIL");
+
+    log_event("TEST",
+              "stress;inconsistent=%d;timeouts=%u;drops=%u",
+              bad_snapshots,
+              (unsigned)timeout_delta,
+              (unsigned)drop_delta);
+
+    vSemaphoreDelete(stress_done_semaphore);
+    stress_done_semaphore = NULL;
+}
+
 static bool cli_admin(void)
 {
     if (!admin_logged_in) {
@@ -55,6 +232,7 @@ static void print_help(void)
            "  scan <in|out> <uid>        simulate RFID scan\n"
            "  emergency [on]             trigger fire mode\n"
            "  echo <on|off>              live log echo\n"
+           "  stress                     concurrency self-test (admin)\n"
            "  login / logout / whoami\n\n"
            "ADMIN ONLY:\n"
            "  schedule set HH:MM HH:MM\n"
@@ -431,6 +609,10 @@ static void cli_exec(char *line)
         printf("New password: ");
         fflush(stdout);
         cli_mode = CLI_PASSWORD_NEW;
+    }
+    else if (strcmp(cmd, "stress") == 0) {
+        NEED_ADMIN();
+        run_stress();
     }
     else {
         printf("unknown '%s'\n", cmd);
