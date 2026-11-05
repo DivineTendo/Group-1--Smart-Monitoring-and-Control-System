@@ -49,7 +49,7 @@
 #define PIN_SD_CS 4
 #define PIN_I2C_SDA         21
 #define PIN_I2C_SCL         22
-#define OLED_ADDR           0x3C
+#define LCD_ADDR           0x27
 #define SERVO_ENTRY_PIN     25
 #define SERVO_EXIT_PIN      26
 #define PIN_BUZZER 13

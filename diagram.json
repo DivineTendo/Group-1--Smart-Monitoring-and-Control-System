@@ -78,11 +78,11 @@
       "attrs": {}
     },
     {
-      "type": "board-ssd1306",
-      "id": "oled1",
-      "top": 281.54,
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": 350.54,
       "left": 0.23,
-      "attrs": { "i2cAddress": "0x3c" }
+      "attrs": {"pins": "i2c","i2cAddress": "0x27"}
     },
     { "type": "wokwi-microsd-card", "id": "sd1", "top": 288.23, "left": 124.87, "attrs": {} },
     {
@@ -163,10 +163,10 @@
     [ "esp_master:3V3", "ldr1:VCC", "red", [] ],
     [ "esp_master:GND.1", "ldr1:GND", "black", [] ],
     [ "esp_master:VP", "ldr1:AO", "yellow", [] ],
-    [ "esp_master:3V3", "oled1:VCC", "red", [ "h-14.21", "v240", "h57.45" ] ],
-    [ "esp_master:GND.1", "oled1:GND", "black", [ "h-23.81", "v115.2", "h57.6" ] ],
-    [ "esp_master:21", "oled1:SDA", "blue", [ "h43.24", "v192", "h-76.87" ] ],
-    [ "esp_master:22", "oled1:SCL", "green", [ "h43.24", "v220.8", "h-86.7" ] ],
+    [ "esp_master:5V", "lcd1:VCC", "red", [] ],
+    [ "esp_master:GND.1", "lcd1:GND", "black", [] ],
+    [ "esp_master:21", "lcd1:SDA", "blue", [] ],
+    [ "esp_master:22", "lcd1:SCL", "green", [] ],
     [ "esp_master:3V3", "sd1:VCC", "red", [ "v-28.8", "h216.19", "v335.86" ] ],
     [ "esp_master:GND.1", "sd1:GND", "black", [ "h-23.81", "v86.4", "h240", "v76.69" ] ],
     [ "esp_master:4", "sd1:CS", "orange", [ "h120.04", "v211.14" ] ],

@@ -102,7 +102,7 @@
 #define NAME_LEN    24
 #define LOG_LINE    160
 #define RING_N      40
-#define OLED_ADDR   0x3C
+#define LCD_ADDR   0x27
 
 #define MOUNT_POINT "/sdcard"
 /* 8.3-safe names: work even if FATFS long file names are not enabled */
@@ -1125,103 +1125,166 @@ static void supervisor_task(void *arg)
     }
 }
 
+
 /* ====================================================================== */
-/* 5. OLED (SSD1306 128x64 over I2C) + dashboard                          */
+/* 5. LCD 16x2 (I2C) + dashboard                                         */
 /* ====================================================================== */
 
-static uint8_t g_fb[128 * 8];
+#define LCD_BACKLIGHT  0x08
+#define LCD_ENABLE     0x04
+#define LCD_RS         0x01
 
-static const uint8_t FONT5x7[59][5] = {   /* ASCII 0x20..0x5A */
-    {0x00,0x00,0x00,0x00,0x00},{0x00,0x00,0x5F,0x00,0x00},{0x00,0x07,0x00,0x07,0x00},{0x14,0x7F,0x14,0x7F,0x14},
-    {0x24,0x2A,0x7F,0x2A,0x12},{0x23,0x13,0x08,0x64,0x62},{0x36,0x49,0x55,0x22,0x50},{0x00,0x05,0x03,0x00,0x00},
-    {0x00,0x1C,0x22,0x41,0x00},{0x00,0x41,0x22,0x1C,0x00},{0x14,0x08,0x3E,0x08,0x14},{0x08,0x08,0x3E,0x08,0x08},
-    {0x00,0x50,0x30,0x00,0x00},{0x08,0x08,0x08,0x08,0x08},{0x00,0x60,0x60,0x00,0x00},{0x20,0x10,0x08,0x04,0x02},
-    {0x3E,0x51,0x49,0x45,0x3E},{0x00,0x42,0x7F,0x40,0x00},{0x42,0x61,0x51,0x49,0x46},{0x21,0x41,0x45,0x4B,0x31},
-    {0x18,0x14,0x12,0x7F,0x10},{0x27,0x45,0x45,0x45,0x39},{0x3C,0x4A,0x49,0x49,0x30},{0x01,0x71,0x09,0x05,0x03},
-    {0x36,0x49,0x49,0x49,0x36},{0x06,0x49,0x49,0x29,0x1E},{0x00,0x36,0x36,0x00,0x00},{0x00,0x56,0x36,0x00,0x00},
-    {0x08,0x14,0x22,0x41,0x00},{0x14,0x14,0x14,0x14,0x14},{0x00,0x41,0x22,0x14,0x08},{0x02,0x01,0x51,0x09,0x06},
-    {0x32,0x49,0x79,0x41,0x3E},{0x7E,0x11,0x11,0x11,0x7E},{0x7F,0x49,0x49,0x49,0x36},{0x3E,0x41,0x41,0x41,0x22},
-    {0x7F,0x41,0x41,0x22,0x1C},{0x7F,0x49,0x49,0x49,0x41},{0x7F,0x09,0x09,0x09,0x01},{0x3E,0x41,0x49,0x49,0x7A},
-    {0x7F,0x08,0x08,0x08,0x7F},{0x00,0x41,0x7F,0x41,0x00},{0x20,0x40,0x41,0x3F,0x01},{0x7F,0x08,0x14,0x22,0x41},
-    {0x7F,0x40,0x40,0x40,0x40},{0x7F,0x02,0x0C,0x02,0x7F},{0x7F,0x04,0x08,0x10,0x7F},{0x3E,0x41,0x41,0x41,0x3E},
-    {0x7F,0x09,0x09,0x09,0x06},{0x3E,0x41,0x51,0x21,0x5E},{0x7F,0x09,0x19,0x29,0x46},{0x46,0x49,0x49,0x49,0x31},
-    {0x01,0x01,0x7F,0x01,0x01},{0x3F,0x40,0x40,0x40,0x3F},{0x1F,0x20,0x40,0x20,0x1F},{0x3F,0x40,0x38,0x40,0x3F},
-    {0x63,0x14,0x08,0x14,0x63},{0x07,0x08,0x70,0x08,0x07},{0x61,0x51,0x49,0x45,0x43},
-};
-
-static void oled_cmd(uint8_t c)
+static void lcd_write_expander(uint8_t data)
 {
-    uint8_t b[2] = { 0x00, c };
-    i2c_master_write_to_device(I2C_NUM_0, OLED_ADDR, b, 2, pdMS_TO_TICKS(100));
+    i2c_master_write_to_device(
+        I2C_NUM_0, LCD_ADDR, &data, 1, pdMS_TO_TICKS(100)
+    );
 }
 
-static void oled_init(void)
+static void lcd_write4(uint8_t nibble)
+{
+    uint8_t data = (nibble & 0xF0) | LCD_BACKLIGHT;
+
+    lcd_write_expander(data);
+    lcd_write_expander(data | LCD_ENABLE);
+    esp_rom_delay_us(1);
+    lcd_write_expander(data & ~LCD_ENABLE);
+    esp_rom_delay_us(50);
+}
+
+static void lcd_send(uint8_t value, bool is_data)
+{
+    uint8_t mode = is_data ? LCD_RS : 0;
+
+    lcd_write4((value & 0xF0) | mode);
+    lcd_write4(((value << 4) & 0xF0) | mode);
+}
+
+static void lcd_command(uint8_t command)
+{
+    lcd_send(command, false);
+}
+
+static void lcd_character(char character)
+{
+    lcd_send((uint8_t)character, true);
+}
+
+static void lcd_clear(void)
+{
+    lcd_command(0x01);
+    vTaskDelay(pdMS_TO_TICKS(2));
+}
+
+static void lcd_set_cursor(uint8_t column, uint8_t row)
+{
+    static const uint8_t row_offsets[] = { 0x00, 0x40 };
+
+    lcd_command(0x80 | (row_offsets[row] + column));
+}
+
+static void lcd_print(const char *text)
+{
+    while (*text) {
+        lcd_character(*text++);
+    }
+}
+
+static void lcd_print_line(uint8_t row, const char *text)
+{
+    char line[17];
+
+    snprintf(line, sizeof(line), "%-16.16s", text);
+
+    lcd_set_cursor(0, row);
+    lcd_print(line);
+}
+
+static void lcd_init(void)
 {
     i2c_config_t cfg = {
-        .mode = I2C_MODE_MASTER, .sda_io_num = PIN_I2C_SDA, .scl_io_num = PIN_I2C_SCL,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE, .scl_pullup_en = GPIO_PULLUP_ENABLE, .master.clk_speed = 400000,
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = PIN_I2C_SDA,
+        .scl_io_num = PIN_I2C_SCL,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = 100000,
     };
+
     i2c_param_config(I2C_NUM_0, &cfg);
-    i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
-    static const uint8_t init[] = { 0xAE, 0xD5, 0x80, 0xA8, 0x3F, 0xD3, 0x00, 0x40, 0x8D, 0x14, 0x20, 0x00,
-                                    0xA1, 0xC8, 0xDA, 0x12, 0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF };
-    for (size_t i = 0; i < sizeof init; i++) oled_cmd(init[i]);
-}
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0));
 
-static void oled_row(int row, const char *s)
-{
-    uint8_t *p = &g_fb[row * 128];
-    memset(p, 0, 128);
-    for (int i = 0; s[i] && i < 21; i++) {
-        int c = toupper((unsigned char)s[i]);
-        if (c < 0x20 || c > 0x5A) c = '?';
-        memcpy(p + i * 6, FONT5x7[c - 0x20], 5);
-    }
-}
+    vTaskDelay(pdMS_TO_TICKS(50));
 
-static void oled_flush(void)
-{
-    static const uint8_t win[] = { 0x21, 0, 127, 0x22, 0, 7 };
-    for (size_t i = 0; i < sizeof win; i++) oled_cmd(win[i]);
-    uint8_t buf[129]; buf[0] = 0x40;
-    for (int pg = 0; pg < 8; pg++) {
-        memcpy(buf + 1, &g_fb[pg * 128], 128);
-        i2c_master_write_to_device(I2C_NUM_0, OLED_ADDR, buf, 129, pdMS_TO_TICKS(100));
-    }
+    /* Initialize the LCD in 4-bit mode. */
+    lcd_write4(0x30);
+    vTaskDelay(pdMS_TO_TICKS(5));
+
+    lcd_write4(0x30);
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    lcd_write4(0x30);
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    lcd_write4(0x20);
+
+    lcd_command(0x28);  // 4-bit mode, 2 lines, 5x8 characters
+    lcd_command(0x0C);  // Display ON, cursor OFF
+    lcd_command(0x06);  // Move cursor forward
+    lcd_clear();
 }
 
 static void display_task(void *arg)
 {
     for (;;) {
         hb_beat(T_DISPLAY);
-        char l[24]; char ts[24];
-        fmt_time(time(NULL), ts, sizeof ts);
-        int inside = 0, alerts = 0; room_t r[2]; int64_t lock0, lock1;
+
+        int inside = 0;
+        room_t r[2];
+        int64_t lock0 = 0, lock1 = 0;
+
         if (bus_lock(RES_DATA, 100)) {
-            inside = g_inside; alerts = g_alert_total; r[0] = g_rooms[0]; r[1] = g_rooms[1];
-            lock0 = g_lockout_until[0]; lock1 = g_lockout_until[1];
+            inside = g_inside;
+            r[0] = g_rooms[0];
+            r[1] = g_rooms[1];
+            lock0 = g_lockout_until[0];
+            lock1 = g_lockout_until[1];
             bus_unlock(RES_DATA);
-        } else { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
         int64_t now = esp_timer_get_time();
-        bool emg = emergency_active(), lk = now < lock0 || now < lock1, open = sched_is_open(time(NULL));
-        uint16_t s, e;
-        if (bus_lock(RES_CFG, 100)) { s = g_sched_start; e = g_sched_end; bus_unlock(RES_CFG); } else { s = 0; e = 0; }
+
+        bool emg = emergency_active();
+        bool lk = now < lock0 || now < lock1;
+
+        char line1[17];
+        char line2[17];
+
+        if (emg) {
+            snprintf(line1, sizeof(line1), "!! FIRE ACTIVE !!");
+            snprintf(line2, sizeof(line2), "EVACUATE NOW");
+
+        } else {
+            snprintf(line1, sizeof(line1),
+                     "IN:%02d R1:%s",
+                     inside,
+                     r[0].presence ? "OCC" : "EMP");
+
+            snprintf(line2, sizeof(line2),
+                     "R2:%s %s",
+                     r[1].presence ? "OCC" : "EMP",
+                     lk ? "LOCKOUT" : "NORMAL");
+        }
 
         if (bus_lock(RES_I2C, 200)) {
-            snprintf(l, sizeof l, "COCIS %s", ts + 11);               oled_row(0, l);
-            snprintf(l, sizeof l, "MODE: %s", emg ? "FIRE EVACUATE" : lk ? "LOCKOUT" : "NORMAL"); oled_row(1, l);
-            snprintf(l, sizeof l, "INSIDE: %d", inside);               oled_row(2, l);
-            snprintf(l, sizeof l, "%02d:%02d-%02d:%02d %s", s / 60, s % 60, e / 60, e % 60, open ? "OPEN" : "SHUT"); oled_row(3, l);
-            for (int i = 0; i < 2; i++) {
-                snprintf(l, sizeof l, "R%d OCC:%s LIGHT:%s", i + 1, r[i].presence ? "Y" : "N", r[i].light ? "ON" : "OFF");
-                oled_row(4 + i, l);
-            }
-            snprintf(l, sizeof l, "ALERTS:%d SD:%s", alerts, g_sd_ok ? "OK" : "NO"); oled_row(6, l);
-            uint32_t cwh = (r[0].saved_s + r[1].saved_s) * ROOM_LIGHT_WATTS / 36;   /* centi-Wh */
-            snprintf(l, sizeof l, "SAVED: %u.%02u WH", (unsigned)(cwh / 100), (unsigned)(cwh % 100)); oled_row(7, l);
-            oled_flush();
+            lcd_print_line(0, line1);
+            lcd_print_line(1, line2);
             bus_unlock(RES_I2C);
         }
+
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -1683,7 +1746,7 @@ void app_main(void)
     rc522_setup();
     sd_setup();
     users_load();
-    oled_init();
+    lcd_init();
 
     uint32_t now = xTaskGetTickCount();
     for (int i = 0; i < T_COUNT; i++) g_hb[i] = now;
