@@ -298,8 +298,19 @@ void display_task(void *arg)
         bool emg = emergency_active();
 
         if (emg) {
-            snprintf(line1, sizeof(line1), "!!FIRE ALERT!!");
-            snprintf(line2, sizeof(line2), "EVACUATE NOW");
+            static int flash = 0;
+            flash = (flash + 1) % 3;
+           if (flash==0) { 
+            snprintf(line1, sizeof(line1), "ALERT!! ALERT!!");
+            snprintf(line2, sizeof(line2), "FIRE DETECTED");
+           } else if(flash==1){
+            snprintf(line1, sizeof(line1), "THIS IS");
+            snprintf(line2, sizeof(line2), "NOT A DRILL");
+           } else {
+            snprintf(line1, sizeof(line1), "EVACUATE NOW");
+            snprintf(line2, sizeof(line2), "FIREEEEE");
+           }
+
         } else {
             snprintf(line1, sizeof(line1),
                    "IN:%02d R1:%s L:%s",
