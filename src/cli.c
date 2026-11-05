@@ -106,6 +106,8 @@ static void cmd_status(void)
            rfid_reader_present[0] ? "RC522" : "sim",
            rfid_reader_present[1] ? "RC522" : "sim");
     printf("SD       : %s\n", sd_card_ok ? "OK" : "N/A");
+    printf("WiFi        : %s | IP: %s | NTP: %s\n", wifi_is_connected() ? "connected" : "offline", 
+          wifi_get_ip(), time_is_synced() ? "synced" : "waiting");
     printf("Alerts   : %d\n", alerts);
     printf("Admin    : %s | LDR %d (%s) | heap %u\n",
            admin_logged_in ? "yes" : "no",
