@@ -25,8 +25,8 @@
 #define PIN_RC522_SS_OUT    17
 #define PIN_RC522_RST       16
 
-#define SERVO_1 26
-#define SERVO_2 25
+#define SERVO_ENTRY_PIN 25
+#define SERVO_EXIT_PIN  26
 
 #define PIN_BUZZER          13
 
@@ -185,7 +185,7 @@ static void init_access_servos(void)
     ledc_channel_config_t channel1 = {
         .channel = LEDC_CHANNEL_0,
         .timer_sel = LEDC_TIMER_0,
-        .gpio_num = SERVO_1,
+        .gpio_num = SERVO_ENTRY_PIN,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .intr_type = LEDC_INTR_DISABLE,
         .duty = 0,
@@ -195,7 +195,7 @@ static void init_access_servos(void)
     ledc_channel_config_t channel2 = {
         .channel = LEDC_CHANNEL_1,
         .timer_sel = LEDC_TIMER_0,
-        .gpio_num = SERVO_2,
+        .gpio_num = SERVO_EXIT_PIN,
         .speed_mode = LEDC_LOW_SPEED_MODE,
         .intr_type = LEDC_INTR_DISABLE,
         .duty = 0,
@@ -205,18 +205,20 @@ static void init_access_servos(void)
     ledc_channel_config(&channel1);
     ledc_channel_config(&channel2);
 
+    /* Both doors start in their locked position. */
     set_servo_angle(0, 0);
-    set_servo_angle(180, 1);
+    set_servo_angle(0, 1);
 }
 
-static void opendoors(void)
+static void open_door(direction_t direction)
 {
-    set_servo_angle(90, 0);
-    set_servo_angle(90, 1);
+    int servo = direction == DIRECTION_ENTRY ? 0 : 1;
+    int closed_angle = 0;
+
+    set_servo_angle(90, servo);
     vTaskDelay(pdMS_TO_TICKS(2000));
 
-    set_servo_angle(0, 0);
-    set_servo_angle(180, 1);
+    set_servo_angle(closed_angle, servo);
 }
 
 /* Schedule */
@@ -559,7 +561,7 @@ static access_result_t access_handle_scan(direction_t direction, const char *uid
 
     if (result == ACCESS_GRANTED) {
         buzz(BUZZER_OK);
-        opendoors();
+        open_door(direction);
     } else {
         buzz(BUZZER_DENIED);
     }
