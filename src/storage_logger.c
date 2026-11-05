@@ -210,6 +210,14 @@ void users_load(void)
         if (loaded)
         {
             memcpy(registered_users, temp, sizeof(registered_users));
+
+            /* Recalculate how many users are inside after loading from SD */
+            people_inside_count = 0;
+            for (int i = 0; i < MAX_USERS; i++) {
+                if (registered_users[i].used && registered_users[i].inside) {
+                    people_inside_count++;
+                }
+            }
         }
         else
         {

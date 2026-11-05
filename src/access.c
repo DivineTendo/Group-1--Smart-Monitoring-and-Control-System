@@ -168,8 +168,7 @@ void open_door(direction_t direction)
 user_t *find_user(const char *uid)
 {
     for (int i = 0; i < MAX_USERS; i++) {
-        if (registered_users[i].used &&
-            strcmp(registered_users[i].uid, uid) == 0) {
+        if (registered_users[i].used && strcmp(registered_users[i].uid, uid) == 0) {
             return &registered_users[i];
         }
     }
@@ -188,6 +187,10 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
     access_result_t result = ACCESS_DENIED_UNKNOWN;
     char name[NAME_LEN] = "-";
 
+    if (!lock_resource(RESOURCE_DATA, 500)) {
+        return ACCESS_DENIED_UNKNOWN;
+    }
+
     user_t *user = find_user(uid);
 
     if (user == NULL) {
@@ -197,23 +200,40 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
 
         if (!schedule_ok) {
             result = ACCESS_DENIED_SCHEDULE;
+            statistics_add_locked(2);
         } else if (direction == DIRECTION_ENTRY && user->inside) {
             result = ACCESS_DENIED_PASSBACK;
+            statistics_add_locked(2);
         } else if (direction == DIRECTION_EXIT && !user->inside) {
             result = ACCESS_DENIED_PASSBACK;
+            statistics_add_locked(2);
         } else {
-            user->inside = (direction == DIRECTION_ENTRY);
+            bool now_inside = (direction == DIRECTION_ENTRY);
+
+            if (user->inside != now_inside) {
+                user->inside = now_inside;
+
+                if (now_inside) {
+                    people_inside_count++;
+                } else {
+                    people_inside_count--;
+                }
+            }
+
+            users_changed = true;
+
             result = ACCESS_GRANTED;
+            statistics_add_locked(direction == DIRECTION_ENTRY ? 0 : 1);
         }
     }
+
+    unlock_resource(RESOURCE_DATA);
 
     static const char *result_names[] = {
         "GRANTED", "DENIED_UNKNOWN", "DENIED_SCHEDULE", "DENIED_PASSBACK"
     };
 
-    printf("[RFID] %s UID %s -> %s (%s)\n",
-           direction == DIRECTION_ENTRY ? "ENTRY" : "EXIT",
-           uid, result_names[result], name);
+    printf("[RFID] %s UID %s -> %s (%s)\n", direction == DIRECTION_ENTRY ? "ENTRY" : "EXIT", uid, result_names[result], name);
 
     if (result == ACCESS_GRANTED) {
         buzz(BUZZER_OK);
