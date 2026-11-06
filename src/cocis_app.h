@@ -283,7 +283,7 @@ void display_task(void *arg);
 void cli_task(void *arg);
 extern volatile bool stress_test_active;
 
-/* wifi.c */
+/* network.c */
 bool wifi_start(void);
 bool wifi_is_connected(void);
 bool time_is_synced(void);
@@ -291,5 +291,6 @@ const char *wifi_get_ip(void);
 void wifi_print_status(void);
 bool wifi_save_credentials(const char *ssid, const char *password);
 void wifi_reconnect(void);
+void start_webserver(void);
 
 #endif

@@ -7,3 +7,8 @@ elf = '.pio/build/az-delivery-devkit-v4/firmware.elf'
 folder = 'storage'   # directory to copy to the card
 size = '32M'           # card capacity (default: 8M, maximum: 256M)
 writeback = true       # write the card contents back to the folder/image when the simulation stops
+
+# Forward http://localhost:8180 to port 80 on the simulated ESP32:
+[[net.forward]]
+from = "localhost:8180"
+to = "target:80"

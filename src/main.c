@@ -22,6 +22,7 @@ void app_main(void)
 
     if (wifi_start()) {
         ESP_LOGI(TAG, "WiFi started successfully.");
+        start_webserver();
     } else {
         ESP_LOGE(TAG, "WiFi failed to start!");
     }
