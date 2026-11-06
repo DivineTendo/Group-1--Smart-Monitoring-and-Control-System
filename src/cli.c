@@ -568,7 +568,7 @@ static void cli_exec(char *line)
             return;
         }
         static const char *messages[] = {
-            "GRANTED", "DENIED: unknown", "DENIED: schedule", "DENIED: passback"
+            "GRANTED", "DENIED: unknown", "DENIED: schedule", "DENIED: passback", "DENIED: reader locked for 30 seconds"
         };
         access_result_t result = access_handle_scan(
             strcmp(argv[1], "in") == 0 ? DIRECTION_ENTRY : DIRECTION_EXIT, uid);

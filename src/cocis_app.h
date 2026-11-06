@@ -83,6 +83,8 @@
 #define LOG_LINE 160
 #define RING_N 40
 #define MOUNT_POINT "/sdcard"
+#define MAX_READER_FAILED_SCANS 3
+#define READER_LOCKOUT_MS 30000
 
 #define LOG_PATH MOUNT_POINT "/access.csv"
 #define LOG_PATH_1 MOUNT_POINT "/access1.csv"
@@ -109,7 +111,8 @@ typedef enum
     ACCESS_GRANTED,
     ACCESS_DENIED_UNKNOWN,
     ACCESS_DENIED_SCHEDULE,
-    ACCESS_DENIED_PASSBACK
+    ACCESS_DENIED_PASSBACK,
+    ACCESS_DENIED_LOCKOUT
 } access_result_t;
 
 typedef enum
@@ -185,7 +188,8 @@ typedef enum
 enum
 {
     BUZZER_OK = 1,
-    BUZZER_DENIED
+    BUZZER_DENIED,
+    BUZZER_LOCKOUT
 };
 
 /* ==================================================================
@@ -293,4 +297,5 @@ bool wifi_save_credentials(const char *ssid, const char *password);
 void wifi_reconnect(void);
 void start_webserver(void);
 
+extern volatile bool stress_test_active;
 #endif

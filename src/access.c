@@ -1,3 +1,4 @@
+
 #include "cocis_app.h"
 
 /* ================================================================
@@ -18,8 +19,10 @@ void tone(int hz, int ms)
     } else {
         ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0);
     }
+
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
     vTaskDelay(pdMS_TO_TICKS(ms));
+
     ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2, 0);
     ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_2);
 }
@@ -29,13 +32,14 @@ void buzzer_task(void *arg)
     while (1) {
         update_task_heartbeat(TASK_BUZZER);
 
-        if (emergency_active()) {          
-            tone(1800, 400); 
+        if (emergency_active()) {
+            tone(1800, 400);
             tone(0, 300);
             continue;
         }
 
         int pattern;
+
         if (xQueueReceive(buzzer_queue, &pattern, pdMS_TO_TICKS(200)) != pdTRUE) {
             continue;
         }
@@ -44,11 +48,21 @@ void buzzer_task(void *arg)
             case BUZZER_OK:
                 tone(2000, 80);
                 break;
+
             case BUZZER_DENIED:
                 tone(400, 150);
                 tone(0, 100);
                 tone(400, 150);
                 break;
+
+            case BUZZER_LOCKOUT:
+                tone(300, 200);
+                tone(0, 100);
+                tone(300, 200);
+                tone(0, 100);
+                tone(300, 200);
+                break;
+
             default:
                 break;
         }
@@ -120,6 +134,7 @@ void init_access_servos(void)
         .duty = 0,
         .hpoint = 0
     };
+
     ledc_channel_config_t channel2 = {
         .channel = LEDC_CHANNEL_1,
         .timer_sel = LEDC_TIMER_0,
@@ -129,6 +144,7 @@ void init_access_servos(void)
         .duty = 0,
         .hpoint = 0
     };
+
     ledc_channel_config(&channel1);
     ledc_channel_config(&channel2);
 
@@ -141,26 +157,35 @@ void open_door(direction_t direction)
 {
     int servo = (direction == DIRECTION_ENTRY) ? 0 : 1;
 
-    /* If emergency is already active, force both doors open */
+    /* If emergency is already active, force both doors open. */
     if (emergency_active()) {
         set_servo_angle(90, 0);
         set_servo_angle(90, 1);
         return;
     }
 
-    /* Normal access: open only this door for 2 seconds */
+    /* Normal access: open only this door for 2 seconds. */
     set_servo_angle(90, servo);
 
     vTaskDelay(pdMS_TO_TICKS(2000));
 
-    /* If emergency was activated while this door was open, keep it open */
+    /* If emergency was activated while this door was open, keep it open. */
     if (emergency_active()) {
         return;
     }
 
-    /* Close only this door */
     set_servo_angle(0, servo);
 }
+
+
+ /* READER LOCKOUT*/
+
+/* Entry and exit readers have independent failure counters and deadlines. */
+static int reader_failed_scans[2] = {0, 0};
+static int64_t reader_lockout_until[2] = {0, 0};
+
+/* Protect shared reader lockout state when accessed by different tasks. */
+static portMUX_TYPE reader_lockout_mux = portMUX_INITIALIZER_UNLOCKED;
 
 /* ================================================================
  * ACCESS LOGIC
@@ -168,10 +193,12 @@ void open_door(direction_t direction)
 user_t *find_user(const char *uid)
 {
     for (int i = 0; i < MAX_USERS; i++) {
-        if (registered_users[i].used && strcmp(registered_users[i].uid, uid) == 0) {
+        if (registered_users[i].used &&
+            strcmp(registered_users[i].uid, uid) == 0) {
             return &registered_users[i];
         }
     }
+
     return NULL;
 }
 
@@ -179,13 +206,47 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
 {
     char uid[UID_LEN];
     snprintf(uid, sizeof(uid), "%s", uid_input);
+
     for (char *p = uid; *p; p++) {
         *p = toupper((unsigned char)*p);
+    }
+
+    /* Identify which reader is handling this scan. */
+    int reader_index = (direction == DIRECTION_ENTRY) ? 0 : 1;
+    const char *reader_name =
+        (direction == DIRECTION_ENTRY) ? "ENTRY" : "EXIT";
+
+    int64_t now_ms = esp_timer_get_time() / 1000;
+
+    /* ------------------------------------------------------------
+     * 1. Check whether this reader is currently locked out.
+     * ------------------------------------------------------------ */
+    bool is_locked = false;
+
+    portENTER_CRITICAL(&reader_lockout_mux);
+
+    if (reader_lockout_until[reader_index] > now_ms) {
+        is_locked = true;
+    } else {
+        /* The deadline has passed, so the reader can be used again. */
+        reader_lockout_until[reader_index] = 0;
+    }
+
+    portEXIT_CRITICAL(&reader_lockout_mux);
+
+    if (is_locked) {
+        printf("[RFID] %s UID %s -> DENIED_LOCKOUT\n",
+               reader_name, uid);
+
+        buzz(BUZZER_LOCKOUT);
+
+        return ACCESS_DENIED_LOCKOUT;
     }
 
     bool schedule_ok = schedule_is_open(time(NULL));
     access_result_t result = ACCESS_DENIED_UNKNOWN;
     char name[NAME_LEN] = "-";
+    bool lockout_started = false;
 
     if (!lock_resource(RESOURCE_DATA, 500)) {
         return ACCESS_DENIED_UNKNOWN;
@@ -193,21 +254,53 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
 
     user_t *user = find_user(uid);
 
+    /* ------------------------------------------------------------
+     * 2. Handle unknown cards and count failed scans.
+     * ------------------------------------------------------------ */
     if (user == NULL) {
         result = ACCESS_DENIED_UNKNOWN;
-    } else {
+
+        portENTER_CRITICAL(&reader_lockout_mux);
+
+        reader_failed_scans[reader_index]++;
+
+        if (reader_failed_scans[reader_index] >= MAX_READER_FAILED_SCANS) {
+            reader_lockout_until[reader_index] =
+                now_ms + ((int64_t)READER_LOCKOUT_MS);
+
+            reader_failed_scans[reader_index] = 0;
+
+            lockout_started = true;
+            result = ACCESS_DENIED_LOCKOUT;
+        }
+
+        portEXIT_CRITICAL(&reader_lockout_mux);
+    }
+
+    /* ------------------------------------------------------------
+     * 3. Handle registered cards.
+     * ------------------------------------------------------------ */
+    else {
         snprintf(name, sizeof(name), "%s", user->name);
+
+        /* A recognized registered card resets this reader's failures. */
+        portENTER_CRITICAL(&reader_lockout_mux);
+        reader_failed_scans[reader_index] = 0;
+        portEXIT_CRITICAL(&reader_lockout_mux);
 
         if (!schedule_ok) {
             result = ACCESS_DENIED_SCHEDULE;
             statistics_add_locked(2);
-        } else if (direction == DIRECTION_ENTRY && user->inside) {
+        }
+        else if (direction == DIRECTION_ENTRY && user->inside) {
             result = ACCESS_DENIED_PASSBACK;
             statistics_add_locked(2);
-        } else if (direction == DIRECTION_EXIT && !user->inside) {
+        }
+        else if (direction == DIRECTION_EXIT && !user->inside) {
             result = ACCESS_DENIED_PASSBACK;
             statistics_add_locked(2);
-        } else {
+        }
+        else {
             bool now_inside = (direction == DIRECTION_ENTRY);
 
             if (user->inside != now_inside) {
@@ -223,28 +316,47 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
             users_changed = true;
 
             result = ACCESS_GRANTED;
-            statistics_add_locked(direction == DIRECTION_ENTRY ? 0 : 1);
+
+            statistics_add_locked(
+                direction == DIRECTION_ENTRY ? 0 : 1
+            );
         }
     }
 
     unlock_resource(RESOURCE_DATA);
 
+    /* ------------------------------------------------------------
+     * 4. Report the access decision.
+     * ------------------------------------------------------------ */
     static const char *result_names[] = {
-        "GRANTED", "DENIED_UNKNOWN", "DENIED_SCHEDULE", "DENIED_PASSBACK"
+        "GRANTED",
+        "DENIED_UNKNOWN",
+        "DENIED_SCHEDULE",
+        "DENIED_PASSBACK",
+        "DENIED_LOCKOUT"
     };
 
-    printf("[RFID] %s UID %s -> %s (%s)\n", direction == DIRECTION_ENTRY ? "ENTRY" : "EXIT", uid, result_names[result], name);
+    printf("[RFID] %s UID %s -> %s (%s)\n",
+           reader_name, uid, result_names[result], name);
 
-    if (result == ACCESS_GRANTED) {
-        /* During stress test, do not operate door or buzzer */
-        if (!stress_test_active) {
-            buzz(BUZZER_OK);
-            open_door(direction);
-        }
-    } else {
-        if (!stress_test_active) {
-            buzz(BUZZER_DENIED);
-        }
+    /* ------------------------------------------------------------
+     * 5. Notify the operator and request the appropriate sound.
+     * ------------------------------------------------------------ */
+    if (lockout_started) {
+        raise_alert(
+            "LOCKOUT",
+            "%s reader locked for 30 seconds after 3 unknown UIDs",
+            reader_name
+        );
+
+        buzz(BUZZER_LOCKOUT);
+    }
+    else if (result == ACCESS_GRANTED) {
+        buzz(BUZZER_OK);
+        open_door(direction);
+    }
+    else {
+        buzz(BUZZER_DENIED);
     }
 
     return result;
@@ -255,8 +367,8 @@ access_result_t access_handle_scan(direction_t direction, const char *uid_input)
  * ================================================================ */
 void reader_task(void *arg)
 {
-    char last_uid[2][UID_LEN] = { "", "" };
-    int64_t last_time_ms[2] = { 0, 0 };
+    char last_uid[2][UID_LEN] = {"", ""};
+    int64_t last_time_ms[2] = {0, 0};
 
     while (1) {
         update_task_heartbeat(TASK_READER);
@@ -267,13 +379,14 @@ void reader_task(void *arg)
             }
 
             char uid[UID_LEN];
+
             if (!rfid_read_uid(reader, uid)) {
                 continue;
             }
 
             int64_t now_ms = esp_timer_get_time() / 1000;
 
-            /* Debounce: ignore same UID on same reader for 2 s */
+            /* Debounce: ignore same UID on same reader for 2 seconds. */
             if (strcmp(uid, last_uid[reader]) == 0 &&
                 now_ms - last_time_ms[reader] < 2000) {
                 last_time_ms[reader] = now_ms;
@@ -282,8 +395,13 @@ void reader_task(void *arg)
 
             snprintf(last_uid[reader], UID_LEN, "%s", uid);
             last_time_ms[reader] = now_ms;
-            access_handle_scan(reader == 0 ? DIRECTION_ENTRY : DIRECTION_EXIT, uid);
+
+            access_handle_scan(
+                reader == 0 ? DIRECTION_ENTRY : DIRECTION_EXIT,
+                uid
+            );
         }
+
         vTaskDelay(pdMS_TO_TICKS(120));
     }
 }

@@ -68,3 +68,13 @@ timestamp,event,detail
 2026-11-05 17:28:29,EVAC,inside;01:02:03:04;Alice Namuli
 2026-11-05 17:28:29,ROOM,R1;presence=0;light=1
 2026-11-05 17:28:29,ROOM,R2;presence=0;light=1
+2026-11-04 12:00:00,SYSTEM,boot;sd=1;rc522=1/1
+2026-11-05 17:30:01,EMERGENCY,ACTIVATED;by=BUTTON
+2026-11-05 17:30:01,EVAC,roster;count=1
+2026-11-05 17:30:01,EVAC,inside;01:02:03:04;Alice Namuli
+2026-11-05 17:30:01,ROOM,R1;presence=0;light=1
+2026-11-05 17:30:01,ROOM,R2;presence=0;light=1
+2026-11-04 12:00:00,SYSTEM,boot;sd=1;rc522=1/1
+2026-11-06 16:51:45,ALERT,LOCKOUT;ENTRY reader locked for 30 seconds after 3 unknown UIDs
+2026-11-04 12:00:00,SYSTEM,boot;sd=1;rc522=1/1
+2026-11-06 16:55:12,ALERT,LOCKOUT;ENTRY reader locked for 30 seconds after 3 unknown UIDs
